@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+
+@theme {
+  --color-pearl-pink: #fce4ec;
+  --color-pearl-gold: #fff8e1;
+  --color-glass-white: rgba(255, 255, 255, 0.4);
+  
+  --background-image-iridescent: linear-gradient(135deg, #fce4ec 0%, #fff8e1 100%);
+  
+  --font-unio: "Plus Jakarta Sans", sans-serif; /* Fallback for Unio style */
+}
+
+@utility glass-card {
+  background: var(--color-glass-white);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 1.5rem; /* 24px - Apple style */
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+}
