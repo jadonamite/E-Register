@@ -15,14 +15,16 @@ export const MemberList = ({ members, signedInIds, onMarkPresent }: any) => {
           >
             <div className="flex flex-col">
               <h3 className="member-name">{member.name}</h3>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="px-2 py-0.5 bg-pearl-pink/30 rounded-md text-[9px] font-black uppercase tracking-widest text-pink-600">
-                  {member.cell}
-                </span>
-                <span className="text-[10px] font-bold opacity-20 uppercase tracking-tighter">
-                  {member.level || "100L"}
-                </span>
-              </div>
+          // Inside the map function:
+<div className="flex items-center gap-2 mt-1">
+  <span className="px-2 py-0.5 bg-pearl-pink/30 rounded-md text-[9px] font-black uppercase tracking-widest text-pink-600">
+    {member.cell}
+  </span>
+  <span className="text-[10px] font-bold opacity-20 uppercase tracking-tighter">
+    {/* Pulling schoolDept (e.g. MET) as requested */}
+    {member.schoolDept}
+  </span>
+</div>
             </div>
 
             <button
