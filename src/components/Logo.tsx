@@ -1,5 +1,9 @@
+// components/Logo.tsx
 export const Logo = () => (
-  <span className="font-unio text-3xl font-black tracking-tighter bg-gradient-to-br from-pink-400 via-rose-300 to-amber-200 bg-clip-text text-transparent">
-    E REGISTER
-  </span>
+  <div className="flex items-center gap-1">
+    <span className="font-unio text-4xl font-bold tracking-tighter bg-gradient-to-tr from-pink-500 via-rose-400 to-amber-300 bg-clip-text text-transparent">
+      e-register
+    </span>
+    <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)] mt-4" />
+  </div>
 );
