@@ -11,33 +11,39 @@ export const MemberList = ({ members, signedInIds, onMarkPresent }: any) => {
           <motion.div
             key={member.id}
             layout
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-between p-6 bg-white border border-gray-100 rounded-[2rem] hover:border-black transition-all group"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex items-center justify-between p-6 bg-white border border-gray-100 rounded-[2rem] hover:shadow-xl hover:shadow-black/5 transition-all group"
           >
             <div className="flex flex-col">
-              <h3 className="text-2xl font-black tracking-tight leading-none mb-2">{member.name}</h3>
+              {/* Softened weight but kept readable size */}
+              <h3 className="text-2xl font-medium tracking-tight text-zinc-900 mb-2">
+                {member.name}
+              </h3>
               <div className="flex items-center gap-3">
-                <span className="px-3 py-1 bg-pearl-pink rounded-full text-[10px] font-black uppercase tracking-widest text-pink-700">
+                <span className="px-3 py-1 bg-pearl-pink/50 rounded-full text-[10px] font-black uppercase tracking-widest text-pink-700">
                   {member.cell}
                 </span>
-                <span className="text-[10px] font-bold opacity-30 uppercase">{member.schoolDept}</span>
+                {/* Now displaying Level/100L/200L etc */}
+                <span className="text-[11px] font-bold opacity-30 uppercase tracking-widest">
+                  {member.level || "100L"}
+                </span>
               </div>
             </div>
 
             <button
               onClick={() => onMarkPresent(member.id)}
               disabled={signedInIds.includes(member.id)}
-              className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-500 ${
+              className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-500 ${
                 signedInIds.includes(member.id)
-                ? "bg-unio-emerald text-white scale-110 shadow-lg"
-                : "bg-gray-100 text-black hover:bg-black hover:text-white"
+                ? "bg-emerald-500 text-white shadow-lg shadow-emerald-200"
+                : "bg-zinc-100 text-black hover:bg-black hover:text-white"
               }`}
             >
               {signedInIds.includes(member.id) ? (
-                <Check weight="bold" size={28} />
+                <Check weight="bold" size={24} />
               ) : (
-                <span className="text-[10px] font-black uppercase tracking-tighter">Present</span>
+                <span className="text-[10px] font-black uppercase">Add</span>
               )}
             </button>
           </motion.div>

@@ -1,66 +1,72 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useState } from "react";
 import { Logo } from "@/components/Logo";
 import { MemberList } from "@/components/MemberList";
-import { AddMemberDrawer } from "@/components/AddMemberDrawer";
+import { AddMemberModal } from "@/components/AddMemberModal";
 import { useMembers } from "@/hooks/use-members";
-import { MagnifyingGlassIcon, ChartLineUpIcon } from "@phosphor-icons/react";
-import { Input } from "@/components/ui/input";
+import { MagnifyingGlass, Pulse, Plus } from "@phosphor-icons/react";
 
 export default function PFCCDashboard() {
-  const { 
-    filteredMembers, 
-    signedInIds, 
-    searchQuery, 
-    setSearchQuery, 
-    addMember, 
-    markPresent,
-    totalCount 
-  } = useMembers();
+  const { filteredMembers, signedInIds, searchQuery, setSearchQuery, addMember, markPresent } = useMembers();
+  const [service, setService] = useState("Sunday");
 
   return (
-    <div className="min-h-screen relative bg-[#F9FAFB] p-4 md:p-10 overflow-hidden">
-      <div className="atmosphere">
-        <div className="blob w-[600px] h-[600px] bg-pearl-pink/15 -top-40 -right-20" />
-      </div>
+    <div className="min-h-screen bg-[#FDFBFC] p-6 md:p-12 font-unio max-w-[1600px] mx-auto relative">
+      <header className="flex flex-col lg:flex-row justify-between items-center gap-8 mb-20">
+        <Logo />
+        <div className="bg-zinc-100 p-2 rounded-2xl flex gap-2">
+          {["Sunday", "Mid-Week"].map((s) => (
+            <button
+              key={s}
+              onClick={() => setService(s)}
+              className={`px-8 py-3 rounded-xl text-xs font-black transition-all ${
+                service === s ? "bg-white text-black shadow-lg" : "opacity-30"
+              }`}
+            >
+              {s.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      </header>
 
-      <div className="max-w-7xl mx-auto z-10 relative">
-        <header className="flex flex-col md:flex-row justify-between items-center gap-6 mb-12">
-          <Logo />
-          <div className="glass-tile px-6 py-2.5 text-[10px] font-black tracking-widest bg-white shadow-sm">
-            SUNDAY SERVICE
-          </div>
-        </header>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <div className="lg:col-span-8 flex flex-col gap-6">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-tile p-8 min-h-[650px] flex flex-col">
-              <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-10">
-                <h2 className="text-3xl font-black tracking-tight shrink-0">Register</h2>
-                <div className="relative w-full md:w-72">
-                  <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 opacity-20" size={20} />
-                  <Input placeholder="Search name or cell..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="h-12 pl-12 bg-black/5 border-none rounded-2xl" />
-                </div>
-              </div>
-              <MemberList members={filteredMembers} signedInIds={signedInIds} onMarkPresent={markPresent} />
-            </motion.div>
-          </div>
-
-          <div className="lg:col-span-4 flex flex-col gap-6">
-            <div className="glass-tile p-10 flex flex-col items-center text-center">
-              <ChartLineUpIcon size={32} className="text-pink-400 mb-3" />
-              <p className="text-xs font-black opacity-40 uppercase">Signed In</p>
-              <span className="text-8xl font-black mt-2">{signedInIds.length}</span>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        <div className="lg:col-span-8">
+          <div className="flex flex-col gap-8 mb-10">
+            <div>
+              <h1 className="text-6xl font-black tracking-tighter">Attendance</h1>
+              <p className="text-xs font-bold opacity-30 uppercase tracking-[0.4em] mt-2">{service} Session</p>
             </div>
             
-            <div className="glass-tile p-8 flex items-center justify-between opacity-50">
-              <p className="text-[10px] font-black uppercase tracking-widest">Total Database: {totalCount}</p>
+            {/* Long Search Bar */}
+            <div className="relative w-full max-w-2xl group">
+              <MagnifyingGlass className="absolute left-6 top-1/2 -translate-y-1/2 opacity-20" size={24} />
+              <input 
+                placeholder="Search name or cell..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-16 w-full pl-16 bg-white border border-zinc-100 rounded-3xl font-medium text-lg focus:border-black shadow-sm transition-all" 
+              />
             </div>
+          </div>
+          
+          <MemberList members={filteredMembers} signedInIds={signedInIds} onMarkPresent={markPresent} />
+        </div>
 
-            <AddMemberDrawer onAdd={addMember} />
+        <div className="lg:col-span-4">
+          <div className="sticky top-12 space-y-8">
+            <div className="bg-black text-white p-12 rounded-[3rem] flex flex-col items-center text-center shadow-2xl">
+              <Pulse size={32} className="text-emerald-400 mb-4 animate-pulse" />
+              <span className="text-[10px] font-black opacity-40 uppercase tracking-[0.5em] mb-2">Live Count</span>
+              <span className="text-9xl font-black tracking-tighter leading-none">{signedInIds.length}</span>
+            </div>
           </div>
         </div>
+      </div>
+
+      {/* Floating Action Button (FAB) */}
+      <div className="fixed bottom-12 right-12 z-50">
+        <AddMemberModal onAdd={(data) => addMember(data.name, data.cell)} />
       </div>
     </div>
   );
