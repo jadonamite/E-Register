@@ -20,9 +20,8 @@ export const MemberList = ({ members, signedInIds, onMarkPresent }: any) => {
   <span className="px-2 py-0.5 bg-pearl-pink/30 rounded-md text-[9px] font-black uppercase tracking-widest text-pink-600">
     {member.cell}
   </span>
-  <span className="text-[10px] font-bold opacity-20 uppercase tracking-tighter">
-    {/* Pulling schoolDept (e.g. MET) as requested */}
-    {member.schoolDept}
+<span className="text-[10px] font-bold opacity-30 uppercase tracking-tighter">
+    {member.level} 
   </span>
 </div>
             </div>
