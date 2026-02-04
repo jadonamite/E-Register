@@ -43,6 +43,26 @@
   background: rgba(255, 255, 255, 0.8);
   box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.05);
 }
+@utility atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: #f9fafb;
+  overflow: hidden;
+}
+
+@utility blob {
+  position: absolute;
+  filter: blur(80px);
+  opacity: 0.4;
+  border-radius: 50%;
+  animation: move 20s infinite alternate;
+}
+
+@keyframes move {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(100px, 50px) scale(1.2); }
+}
 
 @layer base {
   body {
