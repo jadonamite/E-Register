@@ -5,7 +5,7 @@ import { Logo } from "@/components/Logo";
 import { MemberList } from "@/components/MemberList";
 import { AddMemberDrawer } from "@/components/AddMemberDrawer";
 import { useMembers } from "@/hooks/use-members";
-import { MagnifyingGlass, ChartLineUp } from "@phosphor-icons/react";
+import { MagnifyingGlassIcon, ChartLineUpIcon } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 
 export default function PFCCDashboard() {
@@ -39,7 +39,7 @@ export default function PFCCDashboard() {
               <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-10">
                 <h2 className="text-3xl font-black tracking-tight shrink-0">Register</h2>
                 <div className="relative w-full md:w-72">
-                  <MagnifyingGlass className="absolute left-4 top-1/2 -translate-y-1/2 opacity-20" size={20} />
+                  <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 opacity-20" size={20} />
                   <Input placeholder="Search name or cell..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="h-12 pl-12 bg-black/5 border-none rounded-2xl" />
                 </div>
               </div>
@@ -49,7 +49,7 @@ export default function PFCCDashboard() {
 
           <div className="lg:col-span-4 flex flex-col gap-6">
             <div className="glass-tile p-10 flex flex-col items-center text-center">
-              <ChartLineUp size={32} className="text-pink-400 mb-3" />
+              <ChartLineUpIcon size={32} className="text-pink-400 mb-3" />
               <p className="text-xs font-black opacity-40 uppercase">Signed In</p>
               <span className="text-8xl font-black mt-2">{signedInIds.length}</span>
             </div>
