@@ -1,6 +1,7 @@
 import { Logo } from "@/components/Logo"; 
 import { MemberList } from "@/components/MemberList"; // Import the search list
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { mockMembers } from "@/lib/mock-data";
 
 export default function PFCCDashboard() {
   return (
