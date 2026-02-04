@@ -15,6 +15,7 @@
   /* Typography */
   --font-unio: "Plus Jakarta Sans", sans-serif;
 }
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -135,4 +136,26 @@
     border-color: #000;
     box-shadow: 0 0 0 4px rgba(252, 228, 236, 0.6);
   }
+}
+@utility input-premium {
+  background: #f4f4f5;
+  border: 1px solid transparent;
+  border-radius: 1rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Fixing the 'Evil Focus' - Using Signature Pearl Pink */
+  &:focus {
+    background: white;
+    border-color: var(--color-pearl-pink);
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(252, 228, 236, 0.8);
+    transform: translateY(-1px);
+  }
+}
+
+@utility member-name {
+  font-size: 1.125rem; /* Reduced from 2xl to lg (18px) */
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: #18181b;
 }
