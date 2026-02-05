@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, UserPlus, Sparkle } from "@phosphor-icons/react";
+import { Plus } from "@phosphor-icons/react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export const AddMemberModal = ({ onAdd }: { onAdd: (data: any) => void }) => {
@@ -31,7 +31,8 @@ export const AddMemberModal = ({ onAdd }: { onAdd: (data: any) => void }) => {
         </button>
       </DialogTrigger>
       
-      <DialogContent className="modal-glass sm:max-w-[650px] rounded-[3.5rem] p-0 border-none overflow-hidden shadow-[0_50px_100px_rgba(0,0,0,0.2)]">
+      {/* Updated to modal-glass-high for better separation from background */}
+      <DialogContent className="modal-glass-high sm:max-w-[650px] rounded-[3.5rem] p-0 border-none overflow-hidden shadow-[0_50px_100px_rgba(0,0,0,0.25)] outline-none">
         <div className="p-12">
           <Tabs defaultValue="existing" onValueChange={setMode} className="w-full">
             <div className="flex justify-between items-center mb-10">
@@ -53,7 +54,8 @@ export const AddMemberModal = ({ onAdd }: { onAdd: (data: any) => void }) => {
               <div className="grid grid-cols-1 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black opacity-40 uppercase ml-2 tracking-widest">Legal Identity</label>
-                  <Input value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} className="input-glass h-16 px-6 text-lg" placeholder="e.g. David Olatunji" />
+                  {/* Applied input-premium-fix to kill black focus ring */}
+                  <Input value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} className="input-premium-fix h-16 px-6 text-lg" placeholder="e.g. David Olatunji" />
                 </div>
               </div>
 
@@ -61,41 +63,41 @@ export const AddMemberModal = ({ onAdd }: { onAdd: (data: any) => void }) => {
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black opacity-40 uppercase ml-2">Cell Name</label>
-                  <Input value={form.cell} onChange={(e) => setForm({...form, cell: e.target.value})} className="input-glass h-14 px-6" placeholder="Zion" />
+                  <Input value={form.cell} onChange={(e) => setForm({...form, cell: e.target.value})} className="input-premium-fix h-14 px-6" placeholder="Zion" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black opacity-40 uppercase ml-2">Academic Level</label>
-                  <Input value={form.level} onChange={(e) => setForm({...form, level: e.target.value})} className="input-glass h-14 px-6" placeholder="500L" />
+                  <Input value={form.level} onChange={(e) => setForm({...form, level: e.target.value})} className="input-premium-fix h-14 px-6" placeholder="500L" />
                 </div>
 
                 <TabsContent value="existing" className="m-0 col-span-2 grid grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black opacity-40 uppercase ml-2">Church Dept</label>
-                    <Input value={form.churchDept} onChange={(e) => setForm({...form, churchDept: e.target.value})} className="input-glass h-14 px-6" placeholder="Technical" />
+                    <Input value={form.churchDept} onChange={(e) => setForm({...form, churchDept: e.target.value})} className="input-premium-fix h-14 px-6" placeholder="Technical" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black opacity-40 uppercase ml-2">School Dept (e.g. MET)</label>
-                    <Input value={form.schoolDept} onChange={(e) => setForm({...form, schoolDept: e.target.value})} className="input-glass h-14 px-6" placeholder="MET" />
+                    <Input value={form.schoolDept} onChange={(e) => setForm({...form, schoolDept: e.target.value})} className="input-premium-fix h-14 px-6" placeholder="MET" />
                   </div>
                 </TabsContent>
 
                 <TabsContent value="new" className="m-0 col-span-2 grid grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black opacity-40 uppercase ml-2">Invited By</label>
-                    <Input value={form.invitedBy} onChange={(e) => setForm({...form, invitedBy: e.target.value})} className="input-glass h-14 px-6" placeholder="Member Name" />
+                    <Input value={form.invitedBy} onChange={(e) => setForm({...form, invitedBy: e.target.value})} className="input-premium-fix h-14 px-6" placeholder="Member Name" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black opacity-40 uppercase ml-2">Birthday</label>
-                    <Input value={form.birthday} onChange={(e) => setForm({...form, birthday: e.target.value})} className="input-glass h-14 px-6" placeholder="DD/MM" />
+                    <Input value={form.birthday} onChange={(e) => setForm({...form, birthday: e.target.value})} className="input-premium-fix h-14 px-6" placeholder="DD/MM" />
                   </div>
                   <div className="space-y-2 col-span-2">
                     <label className="text-[10px] font-black opacity-40 uppercase ml-2">Home Address</label>
-                    <Input value={form.address} onChange={(e) => setForm({...form, address: e.target.value})} className="input-glass h-14 px-6" placeholder="Full Location" />
+                    <Input value={form.address} onChange={(e) => setForm({...form, address: e.target.value})} className="input-premium-fix h-14 px-6" placeholder="Full Location" />
                   </div>
                 </TabsContent>
               </div>
 
-              <Button onClick={handleSubmit} className="w-full h-18 rounded-[2rem] bg-black text-white hover:bg-zinc-800 text-xl font-black mt-4 shadow-2xl active:scale-[0.98] transition-all">
+              <Button onClick={handleSubmit} className="w-full h-18 rounded-[2rem] bg-black text-white hover:bg-zinc-800 text-xl font-black mt-4 shadow-2xl active:scale-[0.98] transition-all border-none outline-none">
                 {mode === "existing" ? "Confirm Entry" : "Register Convert"}
               </Button>
             </div>
