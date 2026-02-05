@@ -3,49 +3,85 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* 1. THEME DEFINITION - Single Source of Truth */
 @theme {
-  /* Branding Accents - Used only for Logo, Buttons, and Highlights */
+  /* Branding Accents */
   --color-pearl-pink: #fce4ec;
   --color-pearl-gold: #fff8e1;
+  --color-unio-emerald: #10b981;
   
-  /* Minimalist Solid Backgrounds */
+  /* Backgrounds & Text */
   --color-background: #F9FAFB;
   --color-foreground: #111827;
 
   /* Typography */
-  --font-unio: "Plus Jakarta Sans", sans-serif;
+  --font-unio: "Inter Tight", "Plus Jakarta Sans", sans-serif;
 }
 
+/* 2. SHADCN / RADIX BRIDGING */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-border: var(--border);
   --color-primary: var(--primary);
-  /* Add other shadcn variables here */
+  --radius-xl: var(--radius);
 }
+
 :root {
-  --background: 0 0% 98%; /* Matching your #F9FAFB */
+  --background: 0 0% 98%;
   --foreground: 222.2 84% 4.9%;
   --card: 0 0% 100%;
   --border: 214.3 31.8% 91.4%;
   --primary: 222.2 47.4% 11.2%;
-  --radius: 1rem; /* Premium Apple-style rounding */
+  --radius: 1.5rem; /* Standardizing for Apple-style rounding */
 }
 
-@utility bento-tile {
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.03);
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+/* 3. CORE UTILITIES - Glass & Bento Logic */
+@utility glass-frosted {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(25px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+}
 
-  /* Fix: Use standard CSS nesting for hovers within the utility */
+@utility bento-card {
+  background: white;
+  border: 1px solid #f1f1f1;
+  border-radius: 2rem;
+  box-shadow: 0 10px 40px -10px rgba(0,0,0,0.04);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
   &:hover {
     transform: translateY(-4px);
-    background: rgba(255, 255, 255, 0.8);
-    box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 20px 50px -12px rgba(0,0,0,0.08);
   }
+}
+
+/* 4. INPUTS - Clean "Pearl Glow" Logic (No Black Borders) */
+@utility input-premium {
+  background: #f4f4f5;
+  border: 1px solid transparent;
+  border-radius: 1.25rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 500;
+  
+  &:focus {
+    background: white;
+    outline: none;
+    border-color: transparent;
+    box-shadow: 0 0 0 3px var(--color-pearl-pink), 
+                0 15px 30px -10px rgba(252, 228, 236, 0.6);
+    transform: translateY(-2px);
+  }
+}
+
+/* 5. COMPONENTS - Typography & Layout */
+@utility member-name {
+  font-size: 1.125rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: #18181b;
 }
 
 @utility atmosphere {
@@ -59,11 +95,12 @@
 @utility blob {
   position: absolute;
   filter: blur(80px);
-  opacity: 0.35;
+  opacity: 0.25; /* Subtle for high-contrast minimalism */
   border-radius: 50%;
   animation: float 20s infinite alternate ease-in-out;
 }
 
+/* 6. ANIMATIONS & LAYERS */
 @keyframes float {
   from { transform: translate(0, 0) scale(1); }
   to { transform: translate(100px, 60px) scale(1.1); }
@@ -72,90 +109,31 @@
 @layer base {
   body {
     @apply bg-background text-foreground antialiased;
+    font-family: var(--font-unio);
   }
 }
-@import "tailwindcss";
-@import "tw-animate-css";
-
-@theme {
-  --color-pearl-pink: #fce4ec;
-  --color-pearl-gold: #fff8e1;
-  --color-unio-emerald: #10b981;
-  --font-unio: "Inter Tight", "Plus Jakarta Sans", sans-serif;
+@utility modal-glass-high {
+  /* High saturation and blur for that premium 'Object' feel */
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(40px) saturate(210%);
+  -webkit-backdrop-filter: blur(40px) saturate(210%);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.2);
 }
 
-@utility bento-card {
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 2rem;
-  box-shadow: 0 10px 40px -10px rgba(0,0,0,0.04);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
-  &:focus-within {
-    border-color: #000;
-    box-shadow: 0 20px 50px -12px rgba(0,0,0,0.08);
-  }
-}
-
-@utility input-premium {
-  background: #f3f4f6;
-  border: 2px solid transparent;
-  border-radius: 1rem;
-  transition: all 0.2s;
-  
-  &:focus {
-    background: white;
-    border-color: #000;
-    outline: none;
-    box-shadow: 0 0 0 4px var(--color-pearl-pink);
-  }
-}
-
-@layer base {
-  body {
-    background-color: #f9fafb;
-    color: #000;
-    @apply antialiased;
-  }
-}
-@utility glass-frosted {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(25px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
-}
-
-@utility input-soft {
-  background: #f1f3f5;
+@utility input-premium-fix {
+  background: rgba(0, 0, 0, 0.04);
   border: 1px solid transparent;
   border-radius: 1.25rem;
   transition: all 0.3s ease;
   
+  /* Kill the Evil Black Border permanently */
   &:focus {
     background: white;
-    border-color: #000;
-    box-shadow: 0 0 0 4px rgba(252, 228, 236, 0.6);
+    outline: none !important;
+    border-color: transparent !important;
+    box-shadow: 0 0 0 3px var(--color-pearl-pink), 
+                0 10px 30px -5px rgba(252, 228, 236, 0.8) !important;
+    transform: translateY(-2px);
   }
-}
-@utility input-premium {
-  background: #f4f4f5;
-  border: 1px solid transparent;
-  border-radius: 1rem;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  
-  /* Fixing the 'Evil Focus' - Using Signature Pearl Pink */
-  &:focus {
-    background: white;
-    border-color: var(--color-pearl-pink);
-    outline: none;
-    box-shadow: 0 0 0 4px rgba(252, 228, 236, 0.8);
-    transform: translateY(-1px);
-  }
-}
-
-@utility member-name {
-  font-size: 1.125rem; /* Reduced from 2xl to lg (18px) */
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  color: #18181b;
 }
