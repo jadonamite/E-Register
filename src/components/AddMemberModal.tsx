@@ -14,8 +14,17 @@ export const AddMemberModal = ({ onAdd }: { onAdd: (data: any) => void }) => {
   const [mode, setMode] = useState("existing");
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const handleSuccess = (data: any) => {
-    onAdd(data);
+  const handleSuccess = (formData: any) => {
+    // FIX: Provide empty string defaults so .toLowerCase() doesn't crash your hook
+    const safeData = {
+      name: "",
+      cell: "",
+      role: "Member",
+      ...formData,
+      id: Date.now(),
+    };
+    
+    onAdd(safeData);
     setShowSuccess(true);
     setTimeout(() => {
       setShowSuccess(false);
@@ -32,16 +41,13 @@ export const AddMemberModal = ({ onAdd }: { onAdd: (data: any) => void }) => {
           </button>
         </DialogTrigger>
 
-        {/* [&>button]:hidden -> This kills the default Shadcn X button 
-          bg-white/25 -> Brightened slightly for better pop
-        */}
         <DialogContent className="sm:max-w-[850px] rounded-[3rem] p-0 border border-white/50 bg-white/25 backdrop-blur-3xl shadow-[0_40px_100px_rgba(0,0,0,0.25)] outline-none overflow-hidden [&>button]:hidden">
           
           <VisuallyHidden.Root>
             <DialogTitle>{mode === "existing" ? "Add Member" : "First-Timer Registration"}</DialogTitle>
           </VisuallyHidden.Root>
 
-          {/* New Custom Premium X Button */}
+          {/* CUSTOM X BUTTON - BACK AND STYLED */}
           <button 
             onClick={() => setOpen(false)}
             className="absolute top-8 right-8 w-10 h-10 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center transition-all z-[60]"
@@ -60,8 +66,8 @@ export const AddMemberModal = ({ onAdd }: { onAdd: (data: any) => void }) => {
                 </header>
 
                 <TabsList className="bg-black/10 p-1.5 rounded-[1.5rem] backdrop-blur-xl border border-white/20">
-                  <TabsTrigger value="existing" className="rounded-xl px-6 py-2 text-[10px] font-black data-[state=active]:bg-white data-[state=active]:text-black transition-all">EXISTING</TabsTrigger>
-                  <TabsTrigger value="new" className="rounded-xl px-6 py-2 text-[10px] font-black data-[state=active]:bg-white data-[state=active]:text-black transition-all">FIRST-TIMER</TabsTrigger>
+                  <TabsTrigger value="existing" className="rounded-xl px-6 py-2 text-[10px] font-black data-[state=active]:bg-white data-[state=active]:text-black">EXISTING</TabsTrigger>
+                  <TabsTrigger value="new" className="rounded-xl px-6 py-2 text-[10px] font-black data-[state=active]:bg-white data-[state=active]:text-black">FIRST-TIMER</TabsTrigger>
                 </TabsList>
               </div>
 
@@ -71,7 +77,7 @@ export const AddMemberModal = ({ onAdd }: { onAdd: (data: any) => void }) => {
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.98 }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  transition={{ duration: 0.2 }}
                 >
                   {mode === "existing" ? (
                     <ExistingForm onSubmit={handleSuccess} />
