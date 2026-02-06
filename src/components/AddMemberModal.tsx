@@ -31,73 +31,79 @@ export const AddMemberModal = ({ onAdd }: { onAdd: (data: any) => void }) => {
         </button>
       </DialogTrigger>
       
-      {/* Updated to modal-glass-high for better separation from background */}
-      <DialogContent className="modal-glass-high sm:max-w-[650px] rounded-[3.5rem] p-0 border-none overflow-hidden shadow-[0_50px_100px_rgba(0,0,0,0.25)] outline-none">
-        <div className="p-12">
+      {/* GLASSMORPHISM CONFIGURATION:
+          - bg-white/40: Subtle white tint
+          - backdrop-blur-2xl: The "Frosted" effect
+          - border-white/20: Soft highlight edge
+      */}
+      <DialogContent className="sm:max-w-[600px] rounded-[3rem] p-0 border border-white/20 bg-white/40 backdrop-blur-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.15)] overflow-hidden outline-none">
+        <div className="p-10">
           <Tabs defaultValue="existing" onValueChange={setMode} className="w-full">
-            <div className="flex justify-between items-center mb-10">
+            <div className="flex justify-between items-center mb-8">
               <header>
-                <DialogTitle className="text-4xl font-black tracking-tighter">
+                <DialogTitle className="text-3xl font-black tracking-tight text-zinc-900">
                   {mode === "existing" ? "Add Member" : "New Convert"}
                 </DialogTitle>
-                <p className="text-[10px] font-bold opacity-30 uppercase tracking-[0.4em]">Database Entry</p>
+                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.3em] mt-1">Database Entry</p>
               </header>
               
-              <TabsList className="bg-black/5 p-1.5 rounded-[1.25rem]">
-                <TabsTrigger value="existing" className="rounded-xl px-6 py-2 text-[10px] font-black data-[state=active]:bg-white data-[state=active]:shadow-sm">EXISTING</TabsTrigger>
-                <TabsTrigger value="new" className="rounded-xl px-6 py-2 text-[10px] font-black data-[state=active]:bg-white data-[state=active]:shadow-sm">CONVERT</TabsTrigger>
+              <TabsList className="bg-black/5 p-1 rounded-2xl backdrop-blur-md">
+                <TabsTrigger value="existing" className="rounded-xl px-5 py-2 text-[10px] font-black data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm transition-all">EXISTING</TabsTrigger>
+                <TabsTrigger value="new" className="rounded-xl px-5 py-2 text-[10px] font-black data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm transition-all">CONVERT</TabsTrigger>
               </TabsList>
             </div>
 
-            <div className="space-y-8 mt-4">
+            <div className="space-y-6">
               {/* CORE IDENTITY BLOCK */}
-              <div className="grid grid-cols-1 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black opacity-40 uppercase ml-2 tracking-widest">Legal Identity</label>
-                  {/* Applied input-premium-fix to kill black focus ring */}
-                  <Input value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} className="input-premium-fix h-16 px-6 text-lg" placeholder="e.g. David Olatunji" />
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-zinc-400 uppercase ml-2 tracking-widest">Legal Identity</label>
+                <Input 
+                  value={form.name} 
+                  onChange={(e) => setForm({...form, name: e.target.value})} 
+                  className="h-14 px-6 rounded-2xl border-none bg-white/50 focus:bg-white/80 transition-all text-base ring-offset-transparent focus-visible:ring-1 focus-visible:ring-black/10" 
+                  placeholder="e.g. David Olatunji" 
+                />
               </div>
 
               {/* DYNAMIC FORM GRID */}
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black opacity-40 uppercase ml-2">Cell Name</label>
-                  <Input value={form.cell} onChange={(e) => setForm({...form, cell: e.target.value})} className="input-premium-fix h-14 px-6" placeholder="Zion" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-zinc-400 uppercase ml-2">Cell Name</label>
+                  <Input value={form.cell} onChange={(e) => setForm({...form, cell: e.target.value})} className="h-12 px-5 rounded-xl border-none bg-white/50 focus:bg-white/80 transition-all ring-offset-transparent focus-visible:ring-1 focus-visible:ring-black/10" placeholder="Zion" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black opacity-40 uppercase ml-2">Academic Level</label>
-                  <Input value={form.level} onChange={(e) => setForm({...form, level: e.target.value})} className="input-premium-fix h-14 px-6" placeholder="500L" />
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-zinc-400 uppercase ml-2">Academic Level</label>
+                  <Input value={form.level} onChange={(e) => setForm({...form, level: e.target.value})} className="h-12 px-5 rounded-xl border-none bg-white/50 focus:bg-white/80 transition-all ring-offset-transparent focus-visible:ring-1 focus-visible:ring-black/10" placeholder="500L" />
                 </div>
 
-                <TabsContent value="existing" className="m-0 col-span-2 grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black opacity-40 uppercase ml-2">Church Dept</label>
-                    <Input value={form.churchDept} onChange={(e) => setForm({...form, churchDept: e.target.value})} className="input-premium-fix h-14 px-6" placeholder="Technical" />
+                <TabsContent value="existing" className="m-0 col-span-2 grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-zinc-400 uppercase ml-2">Church Dept</label>
+                    <Input value={form.churchDept} onChange={(e) => setForm({...form, churchDept: e.target.value})} className="h-12 px-5 rounded-xl border-none bg-white/50 focus:bg-white/80 transition-all ring-offset-transparent focus-visible:ring-1 focus-visible:ring-black/10" placeholder="Technical" />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black opacity-40 uppercase ml-2">School Dept (e.g. MET)</label>
-                    <Input value={form.schoolDept} onChange={(e) => setForm({...form, schoolDept: e.target.value})} className="input-premium-fix h-14 px-6" placeholder="MET" />
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-zinc-400 uppercase ml-2">School Dept</label>
+                    <Input value={form.schoolDept} onChange={(e) => setForm({...form, schoolDept: e.target.value})} className="h-12 px-5 rounded-xl border-none bg-white/50 focus:bg-white/80 transition-all ring-offset-transparent focus-visible:ring-1 focus-visible:ring-black/10" placeholder="MET" />
                   </div>
                 </TabsContent>
 
-                <TabsContent value="new" className="m-0 col-span-2 grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black opacity-40 uppercase ml-2">Invited By</label>
-                    <Input value={form.invitedBy} onChange={(e) => setForm({...form, invitedBy: e.target.value})} className="input-premium-fix h-14 px-6" placeholder="Member Name" />
+                <TabsContent value="new" className="m-0 col-span-2 grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-zinc-400 uppercase ml-2">Invited By</label>
+                    <Input value={form.invitedBy} onChange={(e) => setForm({...form, invitedBy: e.target.value})} className="h-12 px-5 rounded-xl border-none bg-white/50 focus:bg-white/80 transition-all ring-offset-transparent focus-visible:ring-1 focus-visible:ring-black/10" placeholder="Member Name" />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black opacity-40 uppercase ml-2">Birthday</label>
-                    <Input value={form.birthday} onChange={(e) => setForm({...form, birthday: e.target.value})} className="input-premium-fix h-14 px-6" placeholder="DD/MM" />
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-zinc-400 uppercase ml-2">Birthday</label>
+                    <Input value={form.birthday} onChange={(e) => setForm({...form, birthday: e.target.value})} className="h-12 px-5 rounded-xl border-none bg-white/50 focus:bg-white/80 transition-all ring-offset-transparent focus-visible:ring-1 focus-visible:ring-black/10" placeholder="DD/MM" />
                   </div>
-                  <div className="space-y-2 col-span-2">
-                    <label className="text-[10px] font-black opacity-40 uppercase ml-2">Home Address</label>
-                    <Input value={form.address} onChange={(e) => setForm({...form, address: e.target.value})} className="input-premium-fix h-14 px-6" placeholder="Full Location" />
+                  <div className="space-y-1.5 col-span-2">
+                    <label className="text-[10px] font-black text-zinc-400 uppercase ml-2">Home Address</label>
+                    <Input value={form.address} onChange={(e) => setForm({...form, address: e.target.value})} className="h-12 px-5 rounded-xl border-none bg-white/50 focus:bg-white/80 transition-all ring-offset-transparent focus-visible:ring-1 focus-visible:ring-black/10" placeholder="Full Location" />
                   </div>
                 </TabsContent>
               </div>
 
-              <Button onClick={handleSubmit} className="w-full h-18 rounded-[2rem] bg-black text-white hover:bg-zinc-800 text-xl font-black mt-4 shadow-2xl active:scale-[0.98] transition-all border-none outline-none">
+              <Button onClick={handleSubmit} className="w-full h-16 rounded-[1.5rem] bg-black text-white hover:bg-zinc-800 text-lg font-black mt-4 shadow-xl active:scale-[0.97] transition-all border-none">
                 {mode === "existing" ? "Confirm Entry" : "Register Convert"}
               </Button>
             </div>
