@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
-import { Plus } from "@phosphor-icons/react";
+import { Plus, X } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
@@ -32,22 +32,31 @@ export const AddMemberModal = ({ onAdd }: { onAdd: (data: any) => void }) => {
           </button>
         </DialogTrigger>
 
-        {/* Added [&>button]:hidden to remove the default Shadcn X if you want to keep your custom one, 
-            OR just let Shadcn handle it. I've removed your custom one below for stability. */}
-        <DialogContent className="sm:max-w-[850px] rounded-[3.5rem] p-0 border border-white/40 bg-white/10 backdrop-blur-3xl shadow-[0_40px_100px_rgba(0,0,0,0.2)] outline-none overflow-hidden transition-all duration-500">
+        {/* [&>button]:hidden -> This kills the default Shadcn X button 
+          bg-white/25 -> Brightened slightly for better pop
+        */}
+        <DialogContent className="sm:max-w-[850px] rounded-[3rem] p-0 border border-white/50 bg-white/25 backdrop-blur-3xl shadow-[0_40px_100px_rgba(0,0,0,0.25)] outline-none overflow-hidden [&>button]:hidden">
           
           <VisuallyHidden.Root>
             <DialogTitle>{mode === "existing" ? "Add Member" : "First-Timer Registration"}</DialogTitle>
           </VisuallyHidden.Root>
 
-          <div className="p-10">
+          {/* New Custom Premium X Button */}
+          <button 
+            onClick={() => setOpen(false)}
+            className="absolute top-8 right-8 w-10 h-10 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center transition-all z-[60]"
+          >
+            <X size={20} weight="bold" className="text-zinc-900" />
+          </button>
+
+          <div className="p-12">
             <Tabs defaultValue="existing" onValueChange={setMode} className="w-full">
-              <div className="flex justify-between items-center mb-10 pr-6">
+              <div className="flex justify-between items-center mb-10 pr-10">
                 <header>
                   <h2 className="text-4xl font-black tracking-tighter text-zinc-950">
                     {mode === "existing" ? "Add Member" : "First-Timer"}
                   </h2>
-                  <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.4em] mt-1">Central Registry</p>
+                  <p className="text-[10px] font-black text-zinc-700 uppercase tracking-[0.4em] mt-1">Central Registry</p>
                 </header>
 
                 <TabsList className="bg-black/10 p-1.5 rounded-[1.5rem] backdrop-blur-xl border border-white/20">
@@ -59,10 +68,10 @@ export const AddMemberModal = ({ onAdd }: { onAdd: (data: any) => void }) => {
               <AnimatePresence mode="wait">
                 <motion.div 
                   key={mode}
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  transition={{ duration: 0.2 }}
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
                 >
                   {mode === "existing" ? (
                     <ExistingForm onSubmit={handleSuccess} />

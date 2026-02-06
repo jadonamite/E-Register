@@ -2,13 +2,15 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 const Label = ({ children }: { children: React.ReactNode }) => (
-  <label className="text-[11px] font-extrabold text-zinc-800 uppercase ml-2 tracking-widest">{children}</label>
+  <label className="text-[11px] font-black text-zinc-950 uppercase ml-2 tracking-widest drop-shadow-[0_1px_1px_rgba(255,255,255,0.5)]">
+    {children}
+  </label>
 );
 
 const GlassInput = (props: any) => (
   <Input 
     {...props} 
-    className="h-12 px-5 rounded-2xl border-none bg-white/40 focus:bg-white/70 text-zinc-950 placeholder:text-zinc-500 transition-all ring-0 focus-visible:ring-2 focus-visible:ring-black/5 text-sm font-medium" 
+    className="h-12 px-5 rounded-2xl border-none bg-white/40 focus:bg-white/80 text-zinc-950 placeholder:text-zinc-500 transition-all ring-0 focus-visible:ring-2 focus-visible:ring-black/10 text-sm font-bold shadow-inner" 
   />
 );
 
@@ -26,8 +28,8 @@ export const ExistingForm = ({ onSubmit }: { onSubmit: (data: any) => void }) =>
 );
 
 export const FirstTimerForm = ({ onSubmit }: { onSubmit: (data: any) => void }) => (
-  <div className="space-y-5">
-    <div className="grid grid-cols-3 gap-x-4 gap-y-3">
+  <div className="space-y-6">
+    <div className="grid grid-cols-3 gap-x-4 gap-y-4">
       <div className="col-span-2 space-y-1.5"><Label>Full Names</Label><GlassInput /></div>
       <div className="space-y-1.5"><Label>Sex</Label><GlassInput /></div>
       
@@ -50,7 +52,7 @@ export const FirstTimerForm = ({ onSubmit }: { onSubmit: (data: any) => void }) 
 );
 
 const SubmitButton = ({ label, onClick }: { label: string, onClick: () => void }) => (
-  <Button onClick={onClick} className="w-full h-16 rounded-[2rem] bg-black text-white hover:bg-zinc-900 text-lg font-black shadow-xl transition-all active:scale-[0.98] mt-2">
+  <Button onClick={onClick} className="w-full h-16 rounded-[2rem] bg-zinc-950 text-white hover:bg-black text-lg font-black shadow-2xl transition-all active:scale-[0.98] mt-2">
     {label}
   </Button>
 );
