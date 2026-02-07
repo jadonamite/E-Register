@@ -47,3 +47,28 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to mark attendance" }, { status: 500 });
   }
 }
+export async function DELETE(req: Request) {
+  try {
+    await connectDB();
+    const { memberId, serviceType, date } = await req.json();
+
+    const member = await Member.findById(memberId);
+    if (!member) return NextResponse.json({ error: "Member not found" }, { status: 404 });
+
+    // Filter out the specific attendance record for THIS day and THIS service
+    const targetDateStr = new Date(date).toDateString();
+
+    member.attendance = member.attendance.filter((record: any) => {
+      const recordDate = new Date(record.date).toDateString();
+      // Keep the record IF: Date doesn't match OR Service doesn't match
+      return !(recordDate === targetDateStr && record.serviceType === serviceType);
+    });
+
+    await member.save();
+
+    return NextResponse.json({ success: true, memberId }, { status: 200 });
+
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to unmark" }, { status: 500 });
+  }
+}
