@@ -1,13 +1,13 @@
 import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 
-export function useMembers(currentService: string = "Sunday") {
+export function useMembers(currentService: string = "Sunday", selectedDate: Date = new Date()) {
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [signedInIds, setSignedInIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 1. Fetch Members & Calculate Attendance
+  // 1. Fetch Members & Calculate Attendance based on Selected Date
   useEffect(() => {
     async function fetchMembers() {
       try {
@@ -16,15 +16,15 @@ export function useMembers(currentService: string = "Sunday") {
           const data = await res.json();
           setMembers(data);
 
-          // AUTO-CHECK LOGIC:
-          // Look at every member. If they have an attendance record for TODAY and THIS SERVICE, mark them present.
-          const todayStr = new Date().toDateString(); // e.g., "Sun Feb 08 2026"
+          // AUTO-CHECK LOGIC (Time Travel Aware):
+          // Compare against the 'selectedDate' passed from the UI
+          const targetDateStr = selectedDate.toDateString(); 
           
           const alreadyPresentIds = data
             .filter((m: any) => 
               m.attendance?.some((record: any) => {
                 const recordDate = new Date(record.date).toDateString();
-                return recordDate === todayStr && record.serviceType === currentService;
+                return recordDate === targetDateStr && record.serviceType === currentService;
               })
             )
             .map((m: any) => m._id);
@@ -39,7 +39,7 @@ export function useMembers(currentService: string = "Sunday") {
       }
     }
     fetchMembers();
-  }, [currentService]); // Re-run this check if you switch from "Sunday" to "Mid-Week"
+  }, [currentService, selectedDate]); // Re-run when Service OR Date changes
 
   // 2. Filter Logic
   const filteredMembers = useMemo(() => {
@@ -75,23 +75,20 @@ export function useMembers(currentService: string = "Sunday") {
     }
   };
 
-  // 4. Mark Present (Optimistic + API)
- const toggleAttendance = async (id: string) => {
+  // 4. Mark Present (Optimistic + API + Time Travel)
+  const toggleAttendance = async (id: string) => {
     const isPresent = signedInIds.includes(id);
 
-    // 1. Optimistic UI Update (Instant Feedback)
+    // Optimistic UI Update
     if (isPresent) {
-      // REMOVE THEM (Undo)
       setSignedInIds(prev => prev.filter(sid => sid !== id));
       toast.info("Marked Absent");
     } else {
-      // ADD THEM
       setSignedInIds(prev => [...prev, id]);
       toast.success("Marked Present");
     }
 
     try {
-      // 2. Decide: POST (Add) or DELETE (Remove)
       const method = isPresent ? "DELETE" : "POST";
       
       const res = await fetch("/api/attendance", {
@@ -100,7 +97,7 @@ export function useMembers(currentService: string = "Sunday") {
         body: JSON.stringify({
           memberId: id,
           serviceType: currentService, 
-          date: new Date().toISOString()
+          date: selectedDate.toISOString() // Uses the DATE from the date picker
         }),
       });
 
@@ -108,8 +105,8 @@ export function useMembers(currentService: string = "Sunday") {
 
     } catch (error) {
       // Revert UI if API fails
-      if (isPresent) setSignedInIds(prev => [...prev, id]); // Put them back
-      else setSignedInIds(prev => prev.filter(sid => sid !== id)); // Take them out
+      if (isPresent) setSignedInIds(prev => [...prev, id]);
+      else setSignedInIds(prev => prev.filter(sid => sid !== id));
       toast.error("Network Error: Could not update attendance");
     }
   };
@@ -120,7 +117,7 @@ export function useMembers(currentService: string = "Sunday") {
     searchQuery, 
     setSearchQuery, 
     addMember, 
-    markPresent: toggleAttendance,
+    markPresent: toggleAttendance, // Still called 'markPresent' in UI
     loading,
     totalCount: members.length 
   };
