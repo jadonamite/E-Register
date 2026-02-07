@@ -13,14 +13,16 @@ export function useMembers() {
     );
   }, [searchQuery, members]);
 
-  const addMember = (name: string, cell: string) => {
+  // Updated to accept the full data object from the modal
+  const addMember = (data: any) => {
     const newEntry = {
+      ...data,
       id: Date.now(),
-      name,
-      cell,
-      schoolDept: "NEW",
-      churchDept: "Convert",
-      role: "Base Member"
+      // Ensuring defaults if fields are missing
+      schoolDept: data.schoolDept || "N/A",
+      churchDept: data.churchDept || "First-Timer",
+      role: data.role || "Base Member",
+      level: data.level || "100L" // Standardized fallback to fix TS error
     };
     setMembers([newEntry, ...members]);
   };
