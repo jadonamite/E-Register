@@ -76,21 +76,30 @@ export function useMembers(currentService: string = "Sunday") {
   };
 
   // 4. Mark Present (Optimistic + API)
-  const markPresent = async (id: string) => {
-    // If already marked locally, stop (prevent double clicks)
-    if (signedInIds.includes(id)) return;
+ const toggleAttendance = async (id: string) => {
+    const isPresent = signedInIds.includes(id);
 
-    // Optimistic Update
-    setSignedInIds(prev => [...prev, id]);
-    toast.success("Marked Present");
+    // 1. Optimistic UI Update (Instant Feedback)
+    if (isPresent) {
+      // REMOVE THEM (Undo)
+      setSignedInIds(prev => prev.filter(sid => sid !== id));
+      toast.info("Marked Absent");
+    } else {
+      // ADD THEM
+      setSignedInIds(prev => [...prev, id]);
+      toast.success("Marked Present");
+    }
 
     try {
+      // 2. Decide: POST (Add) or DELETE (Remove)
+      const method = isPresent ? "DELETE" : "POST";
+      
       const res = await fetch("/api/attendance", {
-        method: "POST",
+        method: method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           memberId: id,
-          serviceType: currentService, // Use the active service (Sunday/Mid-Week)
+          serviceType: currentService, 
           date: new Date().toISOString()
         }),
       });
@@ -98,9 +107,10 @@ export function useMembers(currentService: string = "Sunday") {
       if (!res.ok) throw new Error("Failed to save");
 
     } catch (error) {
-      // Revert if API fails
-      setSignedInIds(prev => prev.filter(sid => sid !== id));
-      toast.error("Could not save attendance");
+      // Revert UI if API fails
+      if (isPresent) setSignedInIds(prev => [...prev, id]); // Put them back
+      else setSignedInIds(prev => prev.filter(sid => sid !== id)); // Take them out
+      toast.error("Network Error: Could not update attendance");
     }
   };
 
@@ -110,7 +120,7 @@ export function useMembers(currentService: string = "Sunday") {
     searchQuery, 
     setSearchQuery, 
     addMember, 
-    markPresent,
+    markPresent: toggleAttendance,
     loading,
     totalCount: members.length 
   };
