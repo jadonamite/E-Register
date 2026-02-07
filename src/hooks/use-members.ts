@@ -22,7 +22,7 @@ export function useMembers() {
       schoolDept: data.schoolDept || "N/A",
       churchDept: data.churchDept || "First-Timer",
       role: data.role || "Base Member",
-      level: data.level || "100L" // Standardized fallback to fix TS error
+      level: data.level || "100L" 
     };
     setMembers([newEntry, ...members]);
   };
