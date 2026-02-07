@@ -68,10 +68,32 @@ export function useMembers() {
 
   // 4. Mark Present (For now, local only + visual)
   // We will connect this to the Attendance API in the next step
-  const markPresent = (id: string) => {
+ 
+  const markPresent = async (id: string, serviceType: string) => {
+    // 1. Optimistic Update (Turn it green instantly)
     if (!signedInIds.includes(id)) {
       setSignedInIds(prev => [...prev, id]);
       toast.success("Marked Present");
+    }
+
+    try {
+      // 2. Send to Backend
+      const res = await fetch("/api/attendance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          memberId: id,
+          serviceType: serviceType, // e.g., "Sunday"
+          date: new Date().toISOString()
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to save");
+
+    } catch (error) {
+      // If it fails, revert the green checkmark
+      setSignedInIds(prev => prev.filter(sid => sid !== id));
+      toast.error("Could not save attendance");
     }
   };
 
