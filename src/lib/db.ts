@@ -11,7 +11,6 @@ interface MongooseCache {
   promise: Promise<typeof mongoose> | null;
 }
 
-// Global caching to prevent multiple connections in development
 let cached: MongooseCache = (global as any).mongoose;
 
 if (!cached) {
@@ -19,18 +18,12 @@ if (!cached) {
 }
 
 async function connectDB() {
-  if (cached.conn) {
-    return cached.conn;
-  }
+  if (cached.conn) return cached.conn;
 
   if (!cached.promise) {
-    const opts = {
+    cached.promise = mongoose.connect(MONGODB_URI!, {
       bufferCommands: false,
-    };
-
-    cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
-      return mongoose;
-    });
+    }).then((mongoose) => mongoose);
   }
   
   try {
