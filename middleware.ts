@@ -2,19 +2,19 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  // Mock role - your backend peer will eventually provide this via JWT/Cookie
+  // 1. Get the Role from the cookie
   const userRole = request.cookies.get('user-role')?.value 
-
   const { pathname } = request.nextUrl
 
-  // Protect the PFCC route
+  // 2. Protect PFCC Route
+  // If they are going to /pfcc but their role is NOT 'PFCC'... kick them out.
   if (pathname.startsWith('/pfcc') && userRole !== 'PFCC') {
-    return NextResponse.redirect(new URL('/auth/login', request.url))
+    return NextResponse.redirect(new URL('/', request.url)) // CHANGED: /auth/login -> /
   }
 
-  // Protect the EXEC route
+  // 3. Protect Exec Route
   if (pathname.startsWith('/exec') && userRole !== 'EXEC') {
-    return NextResponse.redirect(new URL('/auth/login', request.url))
+    return NextResponse.redirect(new URL('/', request.url)) // CHANGED: /auth/login -> /
   }
 
   return NextResponse.next()
