@@ -26,7 +26,7 @@ export default function LoginPage() {
 
   return (
     // replace the class name above if errors {/*min-h-screen relative flex items-center justify-center*/}
-    <main className=" absolute inset-0 overflow-hidden bg-background">
+    <main className="min-h-screen relative flex items-center justify-center absolute inset-0 overflow-hidden bg-background">
       {/* Visual Pop: Living Atmosphere Blobs */}
       <div className="atmosphere">
         <motion.div 
