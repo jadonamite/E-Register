@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,21 +14,30 @@ export default function LoginPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+
     if (password === "Register") {
+      // 1. Set the Cookie (The "Gate Pass" for Middleware)
+      document.cookie = "user-role=PFCC; path=/; max-age=86400; SameSite=Lax";
+      // 2. Redirect
       router.push("/pfcc");
     } else if (password === "Executive") {
+      // 1. Set the Executive Cookie
+      document.cookie = "user-role=EXEC; path=/; max-age=86400; SameSite=Lax";
+      // 2. Redirect
       router.push("/exec");
     } else {
+      // Shake animation trigger
       setError(true);
-      setTimeout(() => setError(false), 500); // Reset shake animation
+      setTimeout(() => setError(false), 500); 
     }
   };
 
   return (
-    // replace the class name above if errors {/*min-h-screen relative flex items-center justify-center*/}
-    <main className="min-h-screen relative flex items-center justify-center absolute inset-0 overflow-hidden bg-background">
+    <main className="min-h-screen w-full relative flex items-center justify-center overflow-hidden bg-background">
+      
       {/* Visual Pop: Living Atmosphere Blobs */}
-      <div className="atmosphere">
+      {/* We use absolute positioning here so they sit BEHIND the card */}
+      <div className="absolute inset-0 w-full h-full pointer-events-none">
         <motion.div 
           animate={{ 
             x: [0, 50, 0], 
@@ -36,7 +45,8 @@ export default function LoginPage() {
             scale: [1, 1.1, 1] 
           }}
           transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          className="blob w-96 h-96 bg-pearl-pink -top-20 -left-20" 
+          // Ensure 'bg-pearl-pink' is defined in your Tailwind config or use a hex code like 'bg-[#ffd1dc]'
+          className="absolute blob w-96 h-96 bg-pink-200/40 blur-3xl rounded-full -top-20 -left-20" 
         />
         <motion.div 
           animate={{ 
@@ -45,20 +55,21 @@ export default function LoginPage() {
             scale: [1, 1.2, 1] 
           }}
           transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-          className="blob w-80 h-80 bg-pearl-gold bottom-10 right-10" 
+          // Ensure 'bg-pearl-gold' is defined or use 'bg-[#fff5cc]'
+          className="absolute blob w-80 h-80 bg-amber-100/40 blur-3xl rounded-full bottom-10 right-10" 
         />
       </div>
 
       {/* The Login Card */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
+        initial={{ opacity: 0, scale: 0.95 }}
         animate={{ 
           opacity: 1, 
           scale: 1,
           x: error ? [0, -10, 10, -10, 10, 0] : 0 
         }}
         transition={{ type: "spring", damping: 20, stiffness: 100 }}
-        className="glass-card w-full max-w-[400px] p-10 flex flex-col items-center gap-10 shadow-2xl border-white/50 z-10"
+        className="glass-card relative z-10 w-full max-w-[400px] p-10 flex flex-col items-center gap-10 shadow-2xl border border-white/40 bg-white/30 backdrop-blur-xl rounded-3xl"
       >
         <div className="text-center">
           <Logo />
@@ -74,7 +85,7 @@ export default function LoginPage() {
               placeholder="Enter Access Code"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="h-14 bg-white/40 border-none rounded-2xl text-center text-lg tracking-[0.4em] focus:ring-2 ring-pearl-pink/30 transition-all placeholder:tracking-normal placeholder:opacity-50"
+              className="h-14 bg-white/50 border-white/20 rounded-2xl text-center text-lg tracking-[0.4em] focus:ring-2 focus:ring-pink-300/30 transition-all placeholder:tracking-normal placeholder:opacity-50 font-bold"
             />
           </div>
 
