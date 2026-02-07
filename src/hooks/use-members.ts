@@ -1,13 +1,13 @@
 import { useState, useMemo, useEffect } from "react";
-import { toast } from "sonner"; // Assuming you have Sonner for toasts
+import { toast } from "sonner";
 
-export function useMembers() {
+export function useMembers(currentService: string = "Sunday") {
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [signedInIds, setSignedInIds] = useState<string[]>([]); // Changed to string for MongoDB _id
+  const [signedInIds, setSignedInIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 1. Fetch Members from Database on Load
+  // 1. Fetch Members & Calculate Attendance
   useEffect(() => {
     async function fetchMembers() {
       try {
@@ -15,6 +15,21 @@ export function useMembers() {
         if (res.ok) {
           const data = await res.json();
           setMembers(data);
+
+          // AUTO-CHECK LOGIC:
+          // Look at every member. If they have an attendance record for TODAY and THIS SERVICE, mark them present.
+          const todayStr = new Date().toDateString(); // e.g., "Sun Feb 08 2026"
+          
+          const alreadyPresentIds = data
+            .filter((m: any) => 
+              m.attendance?.some((record: any) => {
+                const recordDate = new Date(record.date).toDateString();
+                return recordDate === todayStr && record.serviceType === currentService;
+              })
+            )
+            .map((m: any) => m._id);
+
+          setSignedInIds(alreadyPresentIds);
         }
       } catch (error) {
         console.error("Failed to load members", error);
@@ -24,9 +39,9 @@ export function useMembers() {
       }
     }
     fetchMembers();
-  }, []);
+  }, [currentService]); // Re-run this check if you switch from "Sunday" to "Mid-Week"
 
-  // 2. Filter Logic (Same as before)
+  // 2. Filter Logic
   const filteredMembers = useMemo(() => {
     return members.filter(m => 
       m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -34,11 +49,11 @@ export function useMembers() {
     );
   }, [searchQuery, members]);
 
-  // 3. Add Member (Connects to API)
+  // 3. Add Member (Optimistic + API)
   const addMember = async (data: any) => {
-    // Optimistic UI Update (Show it immediately)
     const tempId = Date.now().toString();
-    const optimisticMember = { ...data, _id: tempId };
+    const optimisticMember = { ...data, _id: tempId, attendance: [] };
+    
     setMembers(prev => [optimisticMember, ...prev]);
 
     try {
@@ -48,42 +63,34 @@ export function useMembers() {
         body: JSON.stringify(data),
       });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to add");
-      }
+      if (!res.ok) throw new Error("Failed to add");
 
       const savedMember = await res.json();
-      
-      // Replace the temporary optimistic member with the real one from DB
       setMembers(prev => prev.map(m => m._id === tempId ? savedMember : m));
       toast.success("Member added to Database");
 
     } catch (error: any) {
-      // Revert if failed
       setMembers(prev => prev.filter(m => m._id !== tempId));
-      toast.error(error.message);
+      toast.error("Failed to save member");
     }
   };
 
-  // 4. Mark Present (For now, local only + visual)
-  // We will connect this to the Attendance API in the next step
- 
-  const markPresent = async (id: string, serviceType: string) => {
-    // 1. Optimistic Update (Turn it green instantly)
-    if (!signedInIds.includes(id)) {
-      setSignedInIds(prev => [...prev, id]);
-      toast.success("Marked Present");
-    }
+  // 4. Mark Present (Optimistic + API)
+  const markPresent = async (id: string) => {
+    // If already marked locally, stop (prevent double clicks)
+    if (signedInIds.includes(id)) return;
+
+    // Optimistic Update
+    setSignedInIds(prev => [...prev, id]);
+    toast.success("Marked Present");
 
     try {
-      // 2. Send to Backend
       const res = await fetch("/api/attendance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           memberId: id,
-          serviceType: serviceType, // e.g., "Sunday"
+          serviceType: currentService, // Use the active service (Sunday/Mid-Week)
           date: new Date().toISOString()
         }),
       });
@@ -91,7 +98,7 @@ export function useMembers() {
       if (!res.ok) throw new Error("Failed to save");
 
     } catch (error) {
-      // If it fails, revert the green checkmark
+      // Revert if API fails
       setSignedInIds(prev => prev.filter(sid => sid !== id));
       toast.error("Could not save attendance");
     }

@@ -8,11 +8,14 @@ import { useMembers } from "@/hooks/use-members";
 import { MagnifyingGlass, Pulse } from "@phosphor-icons/react";
 
 export default function PFCCDashboard() {
-  const { filteredMembers, signedInIds, searchQuery, setSearchQuery, addMember, markPresent } = useMembers();
+
   const [service, setService] = useState("Sunday");
+  
+ 
+  const { filteredMembers, signedInIds, searchQuery, setSearchQuery, addMember, markPresent } = useMembers(service);
 
   return (
-    <div className="min-h-screen bg-[#FDFBFC] p-6 md:p-12 font-unio max-w-[1600px] mx-auto relative z-0">
+    <div className="min-h-screen bg-[#FDFBFC] p-6 md:p-12 font-sans max-w-[1600px] mx-auto relative z-0">
       <header className="flex flex-col lg:flex-row justify-between items-center gap-8 mb-20">
         <Logo />
         <div className="bg-zinc-100 p-2 rounded-2xl flex gap-2">
@@ -21,7 +24,7 @@ export default function PFCCDashboard() {
               key={s}
               onClick={() => setService(s)}
               className={`px-8 py-3 rounded-xl text-xs font-black transition-all ${
-                service === s ? "bg-white text-black shadow-lg" : "opacity-30"
+                service === s ? "bg-white text-black shadow-lg" : "opacity-30 hover:opacity-100"
               }`}
             >
               {s.toUpperCase()}
@@ -44,12 +47,17 @@ export default function PFCCDashboard() {
                 placeholder="Search name or cell..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-16 w-full pl-16 bg-white border border-zinc-100 rounded-3xl font-medium text-lg focus:border-pearl-pink focus:ring-4 focus:ring-pearl-pink/20 outline-none shadow-sm transition-all" 
+                className="h-16 w-full pl-16 bg-white border border-zinc-100 rounded-3xl font-medium text-lg focus:border-pink-300 focus:ring-4 focus:ring-pink-100 outline-none shadow-sm transition-all" 
               />
             </div>
           </div>
           
-          <MemberList members={filteredMembers} signedInIds={signedInIds} onMarkPresent={markPresent} />
+          {/* We pass the 'markPresent' function which now handles the API call */}
+          <MemberList 
+            members={filteredMembers} 
+            signedInIds={signedInIds} 
+            onMarkPresent={markPresent} 
+          />
         </div>
 
         <div className="lg:col-span-4">
@@ -63,7 +71,6 @@ export default function PFCCDashboard() {
         </div>
       </div>
 
-      {/* FIXED: Passing the entire data object to match useMembers(data: any) */}
       <div className="fixed bottom-12 right-12 z-50">
         <AddMemberModal onAdd={(data) => addMember(data)} />
       </div>
