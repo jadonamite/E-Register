@@ -29,17 +29,18 @@ export const MemberList = ({ members = [], signedInIds = [], onMarkPresent }: an
               </div>
             </div>
 
+
             <button
-              // CRITICAL FIX: Passing _id instead of id
               onClick={() => onMarkPresent(member._id)}
-              disabled={signedInIds.includes(member._id)}
+              // DELETE THIS LINE: disabled={signedInIds.includes(member._id)} 
               className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
                 signedInIds.includes(member._id)
-                ? "bg-emerald-500 text-white shadow-lg scale-110 ring-4 ring-emerald-100"
+                ? "bg-emerald-500 text-white shadow-lg scale-110 ring-4 ring-emerald-100 hover:bg-red-500 hover:ring-red-100" // Added hover:bg-red-500 for visual cue that clicking again deletes it
                 : "bg-zinc-100 text-zinc-400 hover:bg-zinc-900 hover:text-white"
               }`}
             >
               {signedInIds.includes(member._id) ? (
+                // Added a small logic: Show 'X' on hover would be cool, but standard Check is fine for now
                 <Check weight="bold" size={20} />
               ) : (
                 <span className="text-[9px] font-black uppercase">Add</span>
