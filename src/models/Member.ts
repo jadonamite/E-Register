@@ -8,7 +8,12 @@ const MemberSchema = new Schema({
     trim: true 
   },
   
-  // 2. Church Data (FLEXIBLE NOW)
+  phone: { 
+    type: String, 
+    required: [true, "Phone number is required"], 
+    unique: true,
+    trim: true 
+  },
   churchDept: { 
     type: String, 
     trim: true,
@@ -18,7 +23,7 @@ const MemberSchema = new Schema({
     type: String, 
     required: true,
     trim: true 
-    // REMOVED 'enum' to allow new cells like "Dominion" or "Healing"
+   
   },
   role: { 
     type: String, 
@@ -37,17 +42,17 @@ const MemberSchema = new Schema({
     required: true 
   },
 
-  // 4. Attendance Log (Sunday/Wednesday)
+
   attendance: [{
     date: { type: Date, default: Date.now },
-    serviceType: { type: String, required: true }, // "Sunday", "Mid-Week"
+    serviceType: { type: String, required: true }, 
     markedBy: { type: String } 
   }],
 
   createdAt: { type: Date, default: Date.now },
 });
 
-// Prevent model recompilation error
+
 const Member = models.Member || model("Member", MemberSchema);
 
 export default Member;
