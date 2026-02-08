@@ -5,9 +5,9 @@ import { Logo } from "@/components/Logo";
 import { StatsGrid } from "@/components/exec/StatsGrid";
 import { GrowthChart } from "@/components/exec/GrowthChart";
 import { SidebarStats } from "@/components/exec/SidebarStats";
-import { HeroGrid } from "@/components/exec/HeroGrid";            // NEW
-import { CellDistribution } from "@/components/exec/CellDistribution"; // NEW
-import { RetentionList } from "@/components/exec/RetentionList";       // NEW
+import { HeroGrid } from "@/components/exec/HeroGrid"; 
+import { CellDistribution } from "@/components/exec/CellDistribution"; 
+import { RetentionList } from "@/components/exec/RetentionList"; 
 
 export default function ExecutiveDashboard() {
   const [data, setData] = useState<any>(null);
@@ -45,37 +45,38 @@ export default function ExecutiveDashboard() {
         </div>
       </header>
       
-      <div className="space-y-8">
-        {/* SECTION 1: THE HEROES (Total, Risk, Leading) */}
+      {/* MASTER BENTO GRID */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        
+        {/* ROW 1 & 2: THE STATS MASONRY (6 Cards Total) */}
+        {/* We drop the HeroGrid wrapper content directly here visually by nesting or using Fragments if we wanted, 
+            but keeping them as components is cleaner. 
+            HeroGrid returns 3 cols. StatsGrid returns 3 cols. 
+            We will render them side-by-side in code flow.
+        */}
+        
+        {/* The 3 Big Hero Cards */}
         <HeroGrid data={data} />
-
-        {/* SECTION 2: THE KPI DETAILS (Old Grid) */}
-        <div>
-          <h4 className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-6 ml-2">KPI Metrics</h4>
-          <StatsGrid data={data} />
+        
+        {/* The 3 Smaller KPI Cards (Now matching the style) */}
+        <StatsGrid data={data} />
+        
+        {/* ROW 3: CHARTING (Spans 2 cols) & DISTRIBUTION (Spans 1 col) */}
+        <div className="lg:col-span-2">
+           <GrowthChart trend={data?.trend} />
+        </div>
+        <div className="lg:col-span-1 h-full">
+           <CellDistribution cellStats={data?.cellStats} total={data?.totalMembers} />
         </div>
 
-        {/* SECTION 3: GROWTH & DISTRIBUTION */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <div className="lg:col-span-8">
-             <GrowthChart trend={data?.trend} />
-          </div>
-          <div className="lg:col-span-4">
-            {/* The Black Bar Chart */}
-            <CellDistribution cellStats={data?.cellStats} total={data?.totalMembers} />
-          </div>
+        {/* ROW 4: LISTS & GOALS */}
+        <div className="lg:col-span-2">
+           <RetentionList riskList={data?.riskList} />
+        </div>
+        <div className="lg:col-span-1">
+           <SidebarStats cellStats={{}} totalMembers={data?.totalMembers} />
         </div>
 
-        {/* SECTION 4: ACTION ITEMS & GOALS */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-           <div className="lg:col-span-8">
-             <RetentionList riskList={data?.riskList} />
-           </div>
-           <div className="lg:col-span-4">
-             {/* Re-using SidebarStats for the Target Goal Card, passing empty cellStats so it hides the duplicate list */}
-             <SidebarStats cellStats={{}} totalMembers={data?.totalMembers} />
-           </div>
-        </div>
       </div>
     </div>
   );
