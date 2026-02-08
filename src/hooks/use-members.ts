@@ -56,12 +56,18 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
     
     setMembers(prev => [optimisticMember, ...prev]);
 
+
     try {
       const res = await fetch("/api/members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
+
+      // NEW: Check for 409 specifically
+      if (res.status === 409) {
+        throw new Error("Member with this phone number already exists!");
+      }
 
       if (!res.ok) throw new Error("Failed to add");
 
@@ -71,7 +77,8 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
 
     } catch (error: any) {
       setMembers(prev => prev.filter(m => m._id !== tempId));
-      toast.error("Failed to save member");
+      // Display the specific error message
+      toast.error(error.message || "Failed to save member");
     }
   };
 
