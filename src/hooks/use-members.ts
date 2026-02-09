@@ -7,6 +7,7 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
   const [signedInIds, setSignedInIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // 1. Fetch Members
   useEffect(() => {
     async function fetchMembers() {
       try {
@@ -38,6 +39,7 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
     fetchMembers();
   }, [currentService, selectedDate]);
 
+  // 2. Filter Logic
   const filteredMembers = useMemo(() => {
     return members.filter(m => 
       m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -45,6 +47,7 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
     );
   }, [searchQuery, members]);
 
+  // 3. Add Member
   const addMember = async (data: any) => {
     const tempId = Date.now().toString();
     const optimisticMember = { ...data, _id: tempId, attendance: [] };
@@ -58,15 +61,12 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
         body: JSON.stringify(data),
       });
 
-      if (res.status === 409) {
-        throw new Error("Member with this phone number already exists!");
-      }
-
+      if (res.status === 409) throw new Error("Member already exists!");
       if (!res.ok) throw new Error("Failed to add");
 
       const savedMember = await res.json();
       setMembers(prev => prev.map(m => m._id === tempId ? savedMember : m));
-      toast.success("Member added to Database");
+      toast.success("Member added successfully");
 
     } catch (error: any) {
       setMembers(prev => prev.filter(m => m._id !== tempId));
@@ -74,10 +74,39 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
     }
   };
 
+  // 4. Update Member (The new Edit logic)
+  const updateMember = async (data: any) => {
+    const originalMember = members.find(m => m._id === data._id);
+    
+    // Optimistic Update
+    setMembers(prev => prev.map(m => m._id === data._id ? { ...m, ...data } : m));
+
+    try {
+      const res = await fetch("/api/members", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) throw new Error("Failed to update");
+      
+      const updated = await res.json();
+      setMembers(prev => prev.map(m => m._id === data._id ? updated : m));
+      toast.success("Member details updated");
+
+    } catch (error) {
+      // Revert on failure
+      if (originalMember) {
+        setMembers(prev => prev.map(m => m._id === data._id ? originalMember : m));
+      }
+      toast.error("Update failed: Network Error");
+    }
+  };
+
+  // 5. Toggle Attendance
   const toggleAttendance = async (id: string) => {
     const isPresent = signedInIds.includes(id);
 
-    // Optimistic Update
     if (isPresent) {
       setSignedInIds(prev => prev.filter(sid => sid !== id));
       toast.info("Marked Absent");
@@ -88,7 +117,6 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
 
     try {
       const method = isPresent ? "DELETE" : "POST";
-      
       const res = await fetch("/api/attendance", {
         method: method,
         headers: { "Content-Type": "application/json" },
@@ -99,13 +127,11 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
         }),
       });
 
-      if (!res.ok) throw new Error("Failed to update server");
-
+      if (!res.ok) throw new Error("Failed to sync");
     } catch (error) {
-      // Revert UI if API fails
       if (isPresent) setSignedInIds(prev => [...prev, id]);
       else setSignedInIds(prev => prev.filter(sid => sid !== id));
-      toast.error("Network Error: Could not update attendance");
+      toast.error("Attendance sync failed");
     }
   };
 
@@ -115,6 +141,7 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
     searchQuery, 
     setSearchQuery, 
     addMember, 
+    updateMember,
     markPresent: toggleAttendance, 
     loading,
     totalCount: members.length 
