@@ -2,25 +2,16 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import Member from "@/models/Member";
 
-export const dynamic = "force-dynamic"; // Forces Next.js to not cache this
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
     await connectDB();
-    
-    // .lean() converts complex Mongoose Documents to simple JSON instantly
-    // This often fixes timeouts and serialization errors
     const members = await Member.find({}).sort({ createdAt: -1 }).lean();
-
     return NextResponse.json(members, { status: 200 });
   } catch (error: any) {
-    // THIS IS THE IMPORTANT PART
-    console.error("❌ GET ERROR DETAILS:", error); 
-    
-    return NextResponse.json(
-      { error: "Failed to fetch members", details: error.message },
-      { status: 500 }
-    );
+    console.error("❌ GET ERROR:", error); 
+    return NextResponse.json({ error: "Failed to fetch members" }, { status: 500 });
   }
 }
 
@@ -43,5 +34,29 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error("❌ POST ERROR:", error);
     return NextResponse.json({ error: "Failed to create" }, { status: 500 });
+  }
+}
+
+// 4. NEW: Update Member Details
+export async function PUT(req: Request) {
+  try {
+    await connectDB();
+    const body = await req.json();
+    const { _id, ...updateData } = body;
+
+    if (!_id) return NextResponse.json({ error: "Member ID required" }, { status: 400 });
+
+    const updatedMember = await Member.findByIdAndUpdate(
+      _id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedMember) return NextResponse.json({ error: "Member not found" }, { status: 404 });
+
+    return NextResponse.json(updatedMember, { status: 200 });
+  } catch (error: any) {
+    console.error("❌ PUT ERROR:", error);
+    return NextResponse.json({ error: "Failed to update member" }, { status: 500 });
   }
 }
