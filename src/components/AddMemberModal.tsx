@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
-import { Plus, X } from "@phosphor-icons/react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { X } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
@@ -11,63 +11,42 @@ import { SuccessCheck } from "./SuccessCheck";
 
 interface AddMemberModalProps {
   onAdd: (data: any) => void;
-  isOpen?: boolean;
-  onOpenChange?: (open: boolean) => void;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
   initialData?: any;
 }
 
 export const AddMemberModal = ({ 
   onAdd, 
-  isOpen: externalOpen, 
-  onOpenChange: setExternalOpen, 
+  isOpen, 
+  onOpenChange, 
   initialData 
 }: AddMemberModalProps) => {
-  // Use either external state (from dashboard) or internal state (for the floating FAB)
-  const [internalOpen, setInternalOpen] = useState(false);
-  const open = externalOpen !== undefined ? externalOpen : internalOpen;
-  const setOpen = setExternalOpen || setInternalOpen;
-
   const [mode, setMode] = useState("existing");
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // Automatically switch to 'existing' mode if we are editing a member
+  // Switch to existing mode automatically when editing
   useEffect(() => {
     if (initialData) {
       setMode("existing");
+    } else {
+      setMode("existing");
     }
-  }, [initialData]);
+  }, [initialData, isOpen]);
 
   const handleSuccess = (formData: any) => {
-    const safeData = {
-      name: "",
-      cell: "",
-      role: "Member",
-      ...formData,
-      // If editing, preserve the original ID; otherwise, it will be handled by the hook/API
-      _id: initialData?._id || formData._id,
-    };
-    
-    onAdd(safeData);
+    onAdd(formData);
     setShowSuccess(true);
     
     setTimeout(() => {
       setShowSuccess(false);
-      setOpen(false);
+      onOpenChange(false);
     }, 1500);
   };
 
   return (
     <>
-      <Dialog open={open} onOpenChange={setOpen}>
-        {/* Only show the floating PLUS button if we aren't currently in "Edit Mode" */}
-        {!initialData && (
-          <DialogTrigger asChild>
-            <button className="fixed bottom-12 right-12 w-20 h-20 rounded-full bg-black text-white flex items-center justify-center shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:scale-110 active:scale-90 transition-all z-50">
-              <Plus size={36} weight="bold" />
-            </button>
-          </DialogTrigger>
-        )}
-
+      <Dialog open={isOpen} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-[850px] rounded-[3rem] p-0 border border-white/50 bg-white/25 backdrop-blur-3xl shadow-[0_40px_100px_rgba(0,0,0,0.25)] outline-none overflow-hidden [&>button]:hidden">
           
           <VisuallyHidden.Root>
@@ -77,7 +56,7 @@ export const AddMemberModal = ({
           </VisuallyHidden.Root>
 
           <button 
-            onClick={() => setOpen(false)}
+            onClick={() => onOpenChange(false)}
             className="absolute top-8 right-8 w-10 h-10 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center transition-all z-[60]"
           >
             <X size={20} weight="bold" className="text-zinc-900" />
@@ -95,7 +74,6 @@ export const AddMemberModal = ({
                   </p>
                 </header>
 
-                {/* Hide tabs if editing; we only edit existing members */}
                 {!initialData && (
                   <TabsList className="bg-black/10 p-1.5 rounded-[1.5rem] backdrop-blur-xl border border-white/20">
                     <TabsTrigger value="existing" className="rounded-xl px-6 py-2 text-[10px] font-black data-[state=active]:bg-white data-[state=active]:text-black">EXISTING</TabsTrigger>
