@@ -12,6 +12,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing data" }, { status: 400 });
     }
 
+    // 1. Find the member first to check for duplicates
     const member = await Member.findById(memberId);
     if (!member) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
@@ -29,13 +30,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Already marked present" }, { status: 200 });
     }
 
-    member.attendance.push({
-      date: targetDate,
-      serviceType: serviceType,
-      status: "Present"
-    });
+    // 2. Use updateOne with $push to avoid full document validation errors
+    await Member.updateOne(
+      { _id: memberId },
+      {
+        $push: {
+          attendance: {
+            date: targetDate,
+            serviceType: serviceType,
+            status: "Present"
+          }
+        }
+      }
+    );
 
-    await member.save();
     return NextResponse.json({ success: true, memberId }, { status: 200 });
 
   } catch (error) {
@@ -50,10 +58,13 @@ export async function DELETE(req: Request) {
     const { memberId, serviceType, date } = await req.json();
 
     const targetDate = new Date(date);
-    const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
 
-    // Use $pull for an atomic, reliable deletion of the specific sub-document
+    // Use $pull for an atomic, reliable deletion
     const result = await Member.findByIdAndUpdate(
       memberId,
       {
