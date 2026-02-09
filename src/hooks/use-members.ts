@@ -7,7 +7,6 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
   const [signedInIds, setSignedInIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 1. Fetch Members & Calculate Attendance based on Selected Date
   useEffect(() => {
     async function fetchMembers() {
       try {
@@ -16,8 +15,6 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
           const data = await res.json();
           setMembers(data);
 
-          // AUTO-CHECK LOGIC (Time Travel Aware):
-          // Compare against the 'selectedDate' passed from the UI
           const targetDateStr = selectedDate.toDateString(); 
           
           const alreadyPresentIds = data
@@ -39,9 +36,8 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
       }
     }
     fetchMembers();
-  }, [currentService, selectedDate]); // Re-run when Service OR Date changes
+  }, [currentService, selectedDate]);
 
-  // 2. Filter Logic
   const filteredMembers = useMemo(() => {
     return members.filter(m => 
       m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -49,13 +45,11 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
     );
   }, [searchQuery, members]);
 
-  // 3. Add Member (Optimistic + API)
   const addMember = async (data: any) => {
     const tempId = Date.now().toString();
     const optimisticMember = { ...data, _id: tempId, attendance: [] };
     
     setMembers(prev => [optimisticMember, ...prev]);
-
 
     try {
       const res = await fetch("/api/members", {
@@ -64,7 +58,6 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
         body: JSON.stringify(data),
       });
 
-      // NEW: Check for 409 specifically
       if (res.status === 409) {
         throw new Error("Member with this phone number already exists!");
       }
@@ -77,16 +70,14 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
 
     } catch (error: any) {
       setMembers(prev => prev.filter(m => m._id !== tempId));
-      // Display the specific error message
       toast.error(error.message || "Failed to save member");
     }
   };
 
-  // 4. Mark Present (Optimistic + API + Time Travel)
   const toggleAttendance = async (id: string) => {
     const isPresent = signedInIds.includes(id);
 
-    // Optimistic UI Update
+    // Optimistic Update
     if (isPresent) {
       setSignedInIds(prev => prev.filter(sid => sid !== id));
       toast.info("Marked Absent");
@@ -104,11 +95,11 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
         body: JSON.stringify({
           memberId: id,
           serviceType: currentService, 
-          date: selectedDate.toISOString() // Uses the DATE from the date picker
+          date: selectedDate.toISOString() 
         }),
       });
 
-      if (!res.ok) throw new Error("Failed to save");
+      if (!res.ok) throw new Error("Failed to update server");
 
     } catch (error) {
       // Revert UI if API fails
@@ -124,7 +115,7 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
     searchQuery, 
     setSearchQuery, 
     addMember, 
-    markPresent: toggleAttendance, // Still called 'markPresent' in UI
+    markPresent: toggleAttendance, 
     loading,
     totalCount: members.length 
   };
