@@ -5,14 +5,13 @@ import { Logo } from "@/components/Logo";
 import { MemberList } from "@/components/MemberList";
 import { AddMemberModal } from "@/components/AddMemberModal";
 import { useMembers } from "@/hooks/use-members";
-import { MagnifyingGlass, Pulse, CalendarBlank } from "@phosphor-icons/react";
+import { MagnifyingGlass, Pulse, CalendarBlank, Plus } from "@phosphor-icons/react";
 import { format } from "date-fns";
 
 export default function PFCCDashboard() {
   const [service, setService] = useState("Sunday");
   const [date, setDate] = useState<Date>(new Date());
   
-  // NEW: State to track which member is being edited
   const [editingMember, setEditingMember] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -22,20 +21,18 @@ export default function PFCCDashboard() {
     searchQuery, 
     setSearchQuery, 
     addMember, 
-    updateMember, // Pulled from the updated hook
+    updateMember, 
     markPresent 
   } = useMembers(service, date);
 
-  // Helper to open modal for editing
   const handleEditInitiated = (member: any) => {
     setEditingMember(member);
     setIsModalOpen(true);
   };
 
-  // Helper to handle modal close
-  const handleModalClose = () => {
+  const handleAddNew = () => {
     setEditingMember(null);
-    setIsModalOpen(false);
+    setIsModalOpen(true);
   };
 
   return (
@@ -99,7 +96,7 @@ export default function PFCCDashboard() {
             members={filteredMembers} 
             signedInIds={signedInIds} 
             onMarkPresent={markPresent}
-            onEdit={handleEditInitiated} // Pass the edit handler
+            onEdit={handleEditInitiated}
           />
         </div>
 
@@ -123,10 +120,9 @@ export default function PFCCDashboard() {
       </div>
 
       <div className="fixed bottom-12 right-12 z-50">
-        {/* Pass state to the modal so it knows if it's adding or editing */}
         <AddMemberModal 
           isOpen={isModalOpen}
-          onOpenChange={handleModalClose}
+          onOpenChange={setIsModalOpen}
           initialData={editingMember}
           onAdd={async (data) => {
             if (editingMember) {
@@ -134,9 +130,17 @@ export default function PFCCDashboard() {
             } else {
               await addMember(data);
             }
-            handleModalClose();
           }} 
         />
+        
+        {!isModalOpen && (
+          <button 
+            onClick={handleAddNew}
+            className="w-20 h-20 rounded-full bg-black text-white flex items-center justify-center shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:scale-110 active:scale-90 transition-all"
+          >
+            <Plus size={36} weight="bold" />
+          </button>
+        )}
       </div>
     </div>
   );
