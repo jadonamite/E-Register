@@ -1,15 +1,14 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Check } from "@phosphor-icons/react";
+import { Check, PencilSimple } from "@phosphor-icons/react";
 
-export const MemberList = ({ members = [], signedInIds = [], onMarkPresent }: any) => {
+export const MemberList = ({ members = [], signedInIds = [], onMarkPresent, onEdit }: any) => {
   return (
     <div className="space-y-3">
       <AnimatePresence mode="popLayout">
         {members.map((member: any) => (
           <motion.div
-            // CRITICAL FIX: Changed member.id to member._id
             key={member._id || member.id} 
             layout
             initial={{ opacity: 0, y: 20 }}
@@ -26,31 +25,43 @@ export const MemberList = ({ members = [], signedInIds = [], onMarkPresent }: an
                 <span className="text-[10px] font-bold opacity-30 uppercase tracking-tighter">
                   {member.level} 
                 </span>
+                {member.role !== "Member" && (
+                  <span className="px-2 py-0.5 bg-zinc-900 rounded-md text-[9px] font-black uppercase tracking-widest text-white">
+                    {member.role}
+                  </span>
+                )}
               </div>
             </div>
 
+            <div className="flex items-center gap-2">
+              {/* Edit Button */}
+              <button
+                onClick={() => onEdit(member)}
+                className="w-10 h-10 rounded-full bg-white border border-zinc-200 flex items-center justify-center text-zinc-400 hover:text-zinc-900 hover:border-zinc-900 transition-all"
+              >
+                <PencilSimple weight="bold" size={18} />
+              </button>
 
-            <button
-              onClick={() => onMarkPresent(member._id)}
-              // DELETE THIS LINE: disabled={signedInIds.includes(member._id)} 
-              className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
-                signedInIds.includes(member._id)
-                ? "bg-emerald-500 text-white shadow-lg scale-110 ring-4 ring-emerald-100 hover:bg-red-500 hover:ring-red-100" // Added hover:bg-red-500 for visual cue that clicking again deletes it
-                : "bg-zinc-100 text-zinc-400 hover:bg-zinc-900 hover:text-white"
-              }`}
-            >
-              {signedInIds.includes(member._id) ? (
-                // Added a small logic: Show 'X' on hover would be cool, but standard Check is fine for now
-                <Check weight="bold" size={20} />
-              ) : (
-                <span className="text-[9px] font-black uppercase">Add</span>
-              )}
-            </button>
+              {/* Attendance Toggle */}
+              <button
+                onClick={() => onMarkPresent(member._id)}
+                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  signedInIds.includes(member._id)
+                  ? "bg-emerald-500 text-white shadow-lg scale-110 ring-4 ring-emerald-100 hover:bg-red-500 hover:ring-red-100" 
+                  : "bg-zinc-100 text-zinc-400 hover:bg-zinc-900 hover:text-white"
+                }`}
+              >
+                {signedInIds.includes(member._id) ? (
+                  <Check weight="bold" size={20} />
+                ) : (
+                  <span className="text-[9px] font-black uppercase">Add</span>
+                )}
+              </button>
+            </div>
           </motion.div>
         ))}
       </AnimatePresence>
       
-      {/* Empty State Helper */}
       {members.length === 0 && (
         <div className="text-center p-10 opacity-40">
           <p className="text-xs font-bold uppercase tracking-widest">No members found</p>

@@ -17,15 +17,30 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-// 1. The Source of Truth for Hierarchy
+// --- Types & Constants ---
+export type MemberFormValues = {
+  _id?: string;
+  name: string;
+  phone: string;
+  sex: string;
+  cell: string;
+  seniorCell: string;
+  team: string;
+  schoolDept: string;
+  churchDept: string;
+  level: string;
+  role: string;
+};
+
 const HIERARCHY_DATA = [
   { cell: "Marvelous", seniorCell: "Harvesters", team: "The Winning Team" },
   { cell: "Zion", seniorCell: "Harvesters", team: "The Winning Team" },
   { cell: "Grace", seniorCell: "Eagles", team: "The Winning Team" },
-  // Add more mappings here...
 ];
 
 const ROLES = ["Member", "BST", "Cell Leader", "Senior Cell Leader", "Team Lead", "Pastor"];
+
+// --- Shared Sub-Components ---
 
 const Label = ({ children }: { children: React.ReactNode }) => (
   <label className="text-[11px] font-black text-zinc-950 uppercase ml-2 tracking-widest drop-shadow-[0_1px_1px_rgba(255,255,255,0.5)]">
@@ -40,9 +55,29 @@ const GlassInput = (props: any) => (
   />
 );
 
-export const ExistingForm = ({ onSubmit, initialData }: { onSubmit: (data: any) => void, initialData?: any }) => {
+const GenderToggle = ({ value, onChange }: { value: string, onChange: (val: string) => void }) => (
+  <div className="flex p-1 bg-white/30 rounded-2xl backdrop-blur-md border border-white/20">
+    {["Male", "Female"].map((s) => (
+      <button
+        key={s}
+        type="button"
+        onClick={() => onChange(s)}
+        className={cn(
+          "flex-1 py-3 rounded-xl text-sm font-black transition-all",
+          value === s ? "bg-zinc-950 text-white shadow-lg scale-[1.02]" : "text-zinc-500 hover:text-zinc-800"
+        )}
+      >
+        {s}
+      </button>
+    ))}
+  </div>
+);
+
+// --- Main Form Components ---
+
+export const ExistingForm = ({ onSubmit, initialData }: { onSubmit: (data: MemberFormValues) => void, initialData?: MemberFormValues }) => {
   const [openCell, setOpenCell] = useState(false);
-  const [form, setForm] = useState(initialData || { 
+  const [form, setForm] = useState<MemberFormValues>(initialData || { 
     name: "", phone: "", sex: "Male", cell: "", seniorCell: "", team: "", schoolDept: "", churchDept: "", level: "", role: "Member" 
   });
 
@@ -50,7 +85,7 @@ export const ExistingForm = ({ onSubmit, initialData }: { onSubmit: (data: any) 
   useEffect(() => {
     const match = HIERARCHY_DATA.find(h => h.cell === form.cell);
     if (match) {
-      setForm(prev => ({ ...prev, seniorCell: match.seniorCell, team: match.team }));
+      setForm((prev: MemberFormValues) => ({ ...prev, seniorCell: match.seniorCell, team: match.team }));
     }
   }, [form.cell]);
 
@@ -59,50 +94,24 @@ export const ExistingForm = ({ onSubmit, initialData }: { onSubmit: (data: any) 
       <div className="grid grid-cols-2 gap-4">
         <div className="col-span-2 space-y-1.5">
           <Label>Full Names</Label>
-          <GlassInput 
-            value={form.name} 
-            onChange={(e:any) => setForm({...form, name: e.target.value})} 
-            placeholder="David Olatunji..." 
-          />
+          <GlassInput value={form.name} onChange={(e:any) => setForm({...form, name: e.target.value})} placeholder="David Olatunji..." />
         </div>
         
         <div className="col-span-2 space-y-1.5">
           <Label>Phone Number (Required)</Label>
-          <GlassInput 
-            type="tel"
-            value={form.phone} 
-            onChange={(e:any) => setForm({...form, phone: e.target.value})} 
-            placeholder="08012345678" 
-          />
+          <GlassInput type="tel" value={form.phone} onChange={(e:any) => setForm({...form, phone: e.target.value})} placeholder="08012345678" />
         </div>
 
         <div className="col-span-2 space-y-1.5">
           <Label>Sex</Label>
-          <div className="flex p-1 bg-white/30 rounded-2xl backdrop-blur-md border border-white/20">
-            {["Male", "Female"].map((s) => (
-              <button
-                key={s}
-                onClick={() => setForm({...form, sex: s})}
-                className={cn(
-                  "flex-1 py-3 rounded-xl text-sm font-black transition-all",
-                  form.sex === s ? "bg-zinc-950 text-white shadow-lg scale-[1.02]" : "text-zinc-500 hover:text-zinc-800"
-                )}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
+          <GenderToggle value={form.sex} onChange={(val) => setForm({...form, sex: val})} />
         </div>
 
         <div className="col-span-2 space-y-1.5">
           <Label>Cell (Search or Type)</Label>
           <Popover open={openCell} onOpenChange={setOpenCell}>
             <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                className="w-full h-12 justify-between rounded-2xl bg-white/40 border-none text-zinc-950 font-bold px-5"
-              >
+              <Button variant="outline" role="combobox" className="w-full h-12 justify-between rounded-2xl bg-white/40 border-none text-zinc-950 font-bold px-5">
                 {form.cell || "Select Cell..."}
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
@@ -111,16 +120,10 @@ export const ExistingForm = ({ onSubmit, initialData }: { onSubmit: (data: any) 
               <Command>
                 <CommandInput placeholder="Search cell..." />
                 <CommandList>
-                  <CommandEmpty>No cell found. Type to add.</CommandEmpty>
+                  <CommandEmpty>No cell found.</CommandEmpty>
                   <CommandGroup>
                     {HIERARCHY_DATA.map((h) => (
-                      <CommandItem
-                        key={h.cell}
-                        onSelect={() => {
-                          setForm({ ...form, cell: h.cell });
-                          setOpenCell(false);
-                        }}
-                      >
+                      <CommandItem key={h.cell} onSelect={() => { setForm({ ...form, cell: h.cell }); setOpenCell(false); }}>
                         <Check className={cn("mr-2 h-4 w-4", form.cell === h.cell ? "opacity-100" : "opacity-0")} />
                         {h.cell}
                       </CommandItem>
@@ -144,7 +147,7 @@ export const ExistingForm = ({ onSubmit, initialData }: { onSubmit: (data: any) 
         <div className="col-span-2 space-y-1.5">
           <Label>System Role</Label>
           <select 
-            className="w-full h-12 px-5 rounded-2xl border-none bg-white/40 text-zinc-950 text-sm font-bold focus:ring-2 focus:ring-black/10 transition-all outline-none appearance-none cursor-pointer"
+            className="w-full h-12 px-5 rounded-2xl border-none bg-white/40 text-zinc-950 text-sm font-bold focus:ring-2 focus:ring-black/10 outline-none appearance-none cursor-pointer"
             value={form.role}
             onChange={(e) => setForm({...form, role: e.target.value})}
           >
@@ -152,13 +155,13 @@ export const ExistingForm = ({ onSubmit, initialData }: { onSubmit: (data: any) 
           </select>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 text-zinc-950">
           <Label>Church Dept</Label>
-          <GlassInput value={form.churchDept} onChange={(e:any) => setForm({...form, churchDept: e.target.value})} placeholder="Technical" />
+          <GlassInput value={form.churchDept} onChange={(e:any) => setForm({...form, churchDept: e.target.value})} />
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 text-zinc-950">
           <Label>School Dept</Label>
-          <GlassInput value={form.schoolDept} onChange={(e:any) => setForm({...form, schoolDept: e.target.value})} placeholder="MET" />
+          <GlassInput value={form.schoolDept} onChange={(e:any) => setForm({...form, schoolDept: e.target.value})} />
         </div>
         <div className="col-span-2 space-y-1.5">
           <Label>Academic Level</Label>
@@ -173,7 +176,7 @@ export const ExistingForm = ({ onSubmit, initialData }: { onSubmit: (data: any) 
 export const FirstTimerForm = ({ onSubmit }: { onSubmit: (data: any) => void }) => {
   const [form, setForm] = useState({
     name: "", sex: "Male", birthday: "", schoolDept: "", level: "", address: "", 
-    phone: "", email: "", invitedBy: "", isMember: "", visitDate: "", targetDept: ""
+    phone: "", email: "", invitedBy: "", isMember: "", visitDate: ""
   });
 
   return (
@@ -186,20 +189,7 @@ export const FirstTimerForm = ({ onSubmit }: { onSubmit: (data: any) => void }) 
         
         <div className="col-span-2 space-y-1.5">
           <Label>Sex</Label>
-          <div className="flex p-1 bg-white/30 rounded-2xl backdrop-blur-md border border-white/20">
-            {["Male", "Female"].map((s) => (
-              <button
-                key={s}
-                onClick={() => setForm({...form, sex: s})}
-                className={cn(
-                  "flex-1 py-3 rounded-xl text-sm font-black transition-all",
-                  form.sex === s ? "bg-zinc-950 text-white shadow-lg scale-[1.02]" : "text-zinc-500"
-                )}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
+          <GenderToggle value={form.sex} onChange={(val) => setForm({...form, sex: val})} />
         </div>
 
         <div className="space-y-1.5">
@@ -209,34 +199,12 @@ export const FirstTimerForm = ({ onSubmit }: { onSubmit: (data: any) => void }) 
 
         <div className="space-y-1.5">
           <Label>Phone (Required)</Label>
-          <GlassInput value={form.phone} onChange={(e:any) => setForm({...form, phone: e.target.value})} placeholder="080..." />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Email</Label>
-          <GlassInput value={form.email} onChange={(e:any) => setForm({...form, email: e.target.value})} />
+          <GlassInput value={form.phone} onChange={(e:any) => setForm({...form, phone: e.target.value})} />
         </div>
         
-        <div className="space-y-1.5">
-          <Label>Dept in School</Label>
-          <GlassInput value={form.schoolDept} onChange={(e:any) => setForm({...form, schoolDept: e.target.value})} />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Level</Label>
-          <GlassInput value={form.level} onChange={(e:any) => setForm({...form, level: e.target.value})} placeholder="100" />
-        </div>
-
         <div className="col-span-2 space-y-1.5">
           <Label>Address in School</Label>
           <GlassInput value={form.address} onChange={(e:any) => setForm({...form, address: e.target.value})} />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label>Invited By</Label>
-          <GlassInput value={form.invitedBy} onChange={(e:any) => setForm({...form, invitedBy: e.target.value})} />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Member?</Label>
-          <GlassInput value={form.isMember} onChange={(e:any) => setForm({...form, isMember: e.target.value})} placeholder="Yes/No" />
         </div>
       </div>
       <SubmitButton label="Welcome First-Timer" onClick={() => onSubmit(form)} />
