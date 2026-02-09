@@ -10,11 +10,33 @@ import { format } from "date-fns";
 
 export default function PFCCDashboard() {
   const [service, setService] = useState("Sunday");
-  // NEW: State for the Date Picker
   const [date, setDate] = useState<Date>(new Date());
+  
+  // NEW: State to track which member is being edited
+  const [editingMember, setEditingMember] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Pass the 'date' state into the hook
-  const { filteredMembers, signedInIds, searchQuery, setSearchQuery, addMember, markPresent } = useMembers(service, date);
+  const { 
+    filteredMembers, 
+    signedInIds, 
+    searchQuery, 
+    setSearchQuery, 
+    addMember, 
+    updateMember, // Pulled from the updated hook
+    markPresent 
+  } = useMembers(service, date);
+
+  // Helper to open modal for editing
+  const handleEditInitiated = (member: any) => {
+    setEditingMember(member);
+    setIsModalOpen(true);
+  };
+
+  // Helper to handle modal close
+  const handleModalClose = () => {
+    setEditingMember(null);
+    setIsModalOpen(false);
+  };
 
   return (
     <div className="min-h-screen bg-[#FDFBFC] p-6 md:p-12 font-sans max-w-[1600px] mx-auto relative z-0">
@@ -22,12 +44,10 @@ export default function PFCCDashboard() {
         <Logo />
         
         <div className="flex items-center gap-4">
-          {/* 1. Date Picker (Styled like a pill) */}
           <div className="relative group">
             <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
               <CalendarBlank size={18} className="text-stone-400" />
             </div>
-            {/* The Actual Input */}
             <input 
               type="date"
               value={format(date, "yyyy-MM-dd")}
@@ -36,7 +56,6 @@ export default function PFCCDashboard() {
             />
           </div>
 
-          {/* 2. Service Toggle */}
           <div className="bg-zinc-100 p-1.5 rounded-xl flex gap-1">
             {["Sunday", "Mid-Week"].map((s) => (
               <button
@@ -79,14 +98,14 @@ export default function PFCCDashboard() {
           <MemberList 
             members={filteredMembers} 
             signedInIds={signedInIds} 
-            onMarkPresent={markPresent} 
+            onMarkPresent={markPresent}
+            onEdit={handleEditInitiated} // Pass the edit handler
           />
         </div>
 
         <div className="lg:col-span-4">
           <div className="sticky top-12 space-y-8 z-10">
             <div className="bg-stone-900 text-white p-12 rounded-[3rem] flex flex-col items-center text-center shadow-2xl border border-white/5 relative overflow-hidden">
-              {/* Background Glow */}
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-gradient-to-b from-stone-800 to-stone-900 -z-10" />
               
               <Pulse size={32} className="text-emerald-400 mb-4 animate-pulse" />
@@ -104,7 +123,20 @@ export default function PFCCDashboard() {
       </div>
 
       <div className="fixed bottom-12 right-12 z-50">
-        <AddMemberModal onAdd={(data) => addMember(data)} />
+        {/* Pass state to the modal so it knows if it's adding or editing */}
+        <AddMemberModal 
+          isOpen={isModalOpen}
+          onOpenChange={handleModalClose}
+          initialData={editingMember}
+          onAdd={async (data) => {
+            if (editingMember) {
+              await updateMember(data);
+            } else {
+              await addMember(data);
+            }
+            handleModalClose();
+          }} 
+        />
       </div>
     </div>
   );
