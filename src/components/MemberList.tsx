@@ -5,15 +5,13 @@ import { Check, PencilSimple } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 export const MemberList = ({ members = [], signedInIds = [], onMarkPresent, onEdit }: any) => {
-  // Dynamic Role Styling Helper
   const getRoleStyle = (role: string) => {
     switch (role) {
-      case "Pastor": return "bg-amber-50 text-amber-700 border-amber-200/50 shadow-[0_2px_10px_-3px_rgba(251,191,36,0.3)]";
-      case "Team Lead": return "bg-indigo-50 text-indigo-700 border-indigo-200/50 shadow-[0_2px_10px_-3px_rgba(99,102,241,0.3)]";
-      case "Senior Cell Leader": return "bg-purple-50 text-purple-700 border-purple-200/50 shadow-[0_2px_10px_-3px_rgba(168,85,247,0.3)]";
-      case "Cell Leader": return "bg-emerald-50 text-emerald-700 border-emerald-200/50 shadow-[0_2px_10px_-3px_rgba(16,185,129,0.3)]";
-      case "BST": return "bg-rose-50 text-rose-700 border-rose-200/50 shadow-[0_2px_10px_-3px_rgba(244,63,94,0.3)]";
-      default: return "bg-zinc-50 text-zinc-500 border-zinc-200 shadow-none";
+      case "Pastor": return "bg-amber-100 text-amber-700 border-amber-200";
+      case "Team Lead": return "bg-indigo-100 text-indigo-700 border-indigo-200";
+      case "Cell Leader": return "bg-emerald-100 text-emerald-700 border-emerald-200";
+      case "BST": return "bg-rose-100 text-rose-700 border-rose-200";
+      default: return "bg-zinc-100 text-zinc-500 border-zinc-200";
     }
   };
 
@@ -32,19 +30,14 @@ export const MemberList = ({ members = [], signedInIds = [], onMarkPresent, onEd
             <div className="flex flex-col gap-1.5">
               <h3 className="font-bold text-stone-900 tracking-tight">{member.name}</h3>
               <div className="flex items-center gap-2">
-                {/* Cell Tag */}
-                <span className="px-2.5 py-1 bg-zinc-950 text-white rounded-lg text-[9px] font-black uppercase tracking-widest">
+                <span className="px-2 py-0.5 bg-pink-100/50 rounded-md text-[9px] font-black uppercase tracking-widest text-pink-600 border border-pink-200/50">
                   {member.cell}
                 </span>
-                
-                {/* Level Tag */}
                 <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-tighter">
-                  Lvl {member.level} 
+                  {member.level} 
                 </span>
-
-                {/* Refined Role Tag */}
                 <span className={cn(
-                  "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all",
+                  "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border transition-all shadow-sm",
                   getRoleStyle(member.role)
                 )}>
                   {member.role}
@@ -53,27 +46,25 @@ export const MemberList = ({ members = [], signedInIds = [], onMarkPresent, onEd
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Edit Action */}
               <button
                 onClick={() => onEdit(member)}
-                className="w-11 h-11 rounded-2xl bg-white border border-zinc-100 flex items-center justify-center text-zinc-400 hover:text-zinc-950 hover:border-zinc-950 hover:shadow-md transition-all active:scale-90"
+                className="w-10 h-10 rounded-full bg-white border border-zinc-200 flex items-center justify-center text-zinc-400 hover:text-zinc-900 hover:border-zinc-900 transition-all"
               >
-                <PencilSimple weight="bold" size={20} />
+                <PencilSimple weight="bold" size={18} />
               </button>
 
-              {/* Attendance Toggle */}
               <button
                 onClick={() => onMarkPresent(member._id)}
-                className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-sm ${
+                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm ${
                   signedInIds.includes(member._id)
-                  ? "bg-emerald-500 text-white shadow-emerald-200 hover:bg-red-500" 
-                  : "bg-zinc-100 text-zinc-400 hover:bg-zinc-950 hover:text-white"
+                  ? "bg-emerald-500 text-white shadow-emerald-100 hover:bg-red-500" 
+                  : "bg-zinc-100 text-zinc-400 hover:bg-zinc-900 hover:text-white"
                 }`}
               >
                 {signedInIds.includes(member._id) ? (
-                  <Check weight="bold" size={24} />
+                  <Check weight="bold" size={20} />
                 ) : (
-                  <span className="text-[10px] font-black uppercase">Add</span>
+                  <span className="text-[9px] font-black uppercase">Add</span>
                 )}
               </button>
             </div>
