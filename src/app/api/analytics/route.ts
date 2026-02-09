@@ -9,35 +9,43 @@ export async function GET() {
     await connectDB();
     const members = await Member.find({}).lean();
     
-    // 1. Total Members
     const totalMembers = members.length;
 
-    // 2. FIRST TIMERS (New Members in the last 30 Days)
+    // 1. FIRST TIMERS (30 Days)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
     const firstTimers = members.filter((m: any) => 
       new Date(m.createdAt) > thirtyDaysAgo
     ).length;
 
-    // 3. Retention Risk (Absent for 2 weeks)
+    // 2. RETENTION RISK (Absent 2 weeks)
     const twoWeeksAgo = new Date();
     twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
 
-    const retentionRisk = members.filter((m: any) => {
+    const riskList = members.filter((m: any) => {
       if (!m.attendance || m.attendance.length === 0) return true;
       const lastSeen = new Date(Math.max(...m.attendance.map((a: any) => new Date(a.date).getTime())));
       return lastSeen < twoWeeksAgo;
     });
 
-    // 4. Cell Stats & Trends (Same as before)
+    // 3. HIERARCHY & TREND AGGREGATION
     const cellStats: Record<string, number> = {};
+    const teamStats: Record<string, number> = {};
+    const roleStats: Record<string, number> = {};
     const attendanceMap: Record<string, number> = {};
 
     members.forEach((m: any) => {
-      // Cell Count
+      // Cell Distribution
       const cell = m.cell || "Unknown";
       cellStats[cell] = (cellStats[cell] || 0) + 1;
+
+      // Team Distribution (New)
+      const team = m.team || "No Team";
+      teamStats[team] = (teamStats[team] || 0) + 1;
+
+      // Role Distribution (New)
+      const role = m.role || "Member";
+      roleStats[role] = (roleStats[role] || 0) + 1;
 
       // Attendance History
       m.attendance?.forEach((a: any) => {
@@ -49,13 +57,16 @@ export async function GET() {
     const trend = Object.entries(attendanceMap)
       .map(([date, count]) => ({ date, count }))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(-10); // Last 10 services
+      .slice(-10);
 
     return NextResponse.json({
       totalMembers,
-      firstTimers, // <--- SENDING THIS NEW DATA
-      riskCount: retentionRisk.length,
+      firstTimers,
+      riskCount: riskList.length,
+      riskList: riskList.slice(0, 10), // Send top 10 for the dashboard list
       cellStats,
+      teamStats,
+      roleStats,
       trend
     });
 

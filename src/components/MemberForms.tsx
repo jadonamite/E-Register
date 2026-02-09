@@ -5,12 +5,14 @@ import { CaretDown, Check } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
+// The Source of Truth for Hierarchy
 const HIERARCHY_DATA = [
   { cell: "Marvelous", seniorCell: "Harvesters", team: "The Winning Team" },
   { cell: "Zion", seniorCell: "Harvesters", team: "The Winning Team" },
   { cell: "Grace", seniorCell: "Eagles", team: "The Winning Team" },
 ];
 
+// The Full Hierarchy of Roles
 const ROLES = ["Member", "BST", "Cell Leader", "Senior Cell Leader", "Team Lead", "Pastor"];
 
 const Label = ({ children }: { children: React.ReactNode }) => (
@@ -50,6 +52,7 @@ export const ExistingForm = ({ onSubmit, initialData }: { onSubmit: (data: any) 
   });
   const [dropdowns, setDropdowns] = useState({ cell: false, role: false });
 
+  // Auto-fill Logic for Hierarchy
   useEffect(() => {
     const match = HIERARCHY_DATA.find(h => h.cell.toLowerCase() === form.cell.toLowerCase());
     if (match) {
@@ -57,8 +60,14 @@ export const ExistingForm = ({ onSubmit, initialData }: { onSubmit: (data: any) 
     }
   }, [form.cell]);
 
-  const filteredCells = HIERARCHY_DATA.filter(h => h.cell.toLowerCase().includes(form.cell.toLowerCase()));
-  const filteredRoles = ROLES.filter(r => r.toLowerCase().includes(form.role.toLowerCase()));
+  // Combobox Filtering Logic: Show all if input is focused but empty/default, otherwise filter
+  const filteredCells = form.cell === "" 
+    ? HIERARCHY_DATA 
+    : HIERARCHY_DATA.filter(h => h.cell.toLowerCase().includes(form.cell.toLowerCase()));
+
+  const filteredRoles = (form.role === "" || form.role === "Member")
+    ? ROLES 
+    : ROLES.filter(r => r.toLowerCase().includes(form.role.toLowerCase()));
 
   return (
     <div className="grid grid-cols-12 gap-x-4 gap-y-5">
@@ -135,7 +144,7 @@ export const ExistingForm = ({ onSubmit, initialData }: { onSubmit: (data: any) 
           <AnimatePresence>
             {dropdowns.role && filteredRoles.length > 0 && (
               <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
-                className="absolute top-[calc(100%+8px)] left-0 w-full bg-white rounded-2xl shadow-2xl z-[100] border border-zinc-100 py-2"
+                className="absolute top-[calc(100%+8px)] left-0 w-full bg-white rounded-2xl shadow-2xl z-[100] border border-zinc-100 py-2 max-h-[200px] overflow-y-auto"
               >
                 {filteredRoles.map(r => (
                   <button key={r} onClick={() => setForm({...form, role: r})}
