@@ -1,19 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Logo } from "@/components/Logo";
 import { MemberList } from "@/components/MemberList";
 import { AddMemberModal } from "@/components/AddMemberModal";
 import { useMembers } from "@/hooks/use-members";
-import { MagnifyingGlass, Pulse, CalendarBlank, Plus } from "@phosphor-icons/react";
+import { MagnifyingGlass, Pulse, CalendarBlank, Plus, Monitor, WarningCircle } from "@phosphor-icons/react";
 import { format } from "date-fns";
 
 export default function PFCCDashboard() {
   const [service, setService] = useState("Sunday");
   const [date, setDate] = useState<Date>(new Date());
+  const [isMobile, setIsMobile] = useState(false);
   
   const [editingMember, setEditingMember] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // 1. Check for mobile viewport on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 960); // Setting 1024px as the cutoff for a complex dashboard
+    };
+    
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const { 
     filteredMembers, 
@@ -34,6 +46,28 @@ export default function PFCCDashboard() {
     setEditingMember(null);
     setIsModalOpen(true);
   };
+
+  // 2. Mobile Access Restricted UI
+  if (isMobile) {
+    return (
+      <div className="min-h-screen bg-[#FDFBFC] flex flex-col items-center justify-center p-8 text-center">
+        <div className="mb-8 scale-125">
+          <Logo />
+        </div>
+        <div className="w-20 h-20 bg-zinc-100 rounded-3xl flex items-center justify-center mb-6 text-zinc-400">
+          <Monitor size={40} weight="duotone" />
+        </div>
+        <h1 className="text-3xl font-black tracking-tighter text-stone-900 mb-2">Desktop Only</h1>
+        <p className="text-sm font-medium text-stone-500 max-w-[280px] leading-relaxed">
+          The PFCC Attendance Register is optimized for larger screens to ensure data accuracy and speed.
+        </p>
+        <div className="mt-10 flex items-center gap-2 px-4 py-2 bg-amber-50 rounded-full border border-amber-100">
+          <WarningCircle size={16} className="text-amber-600" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-amber-700">Access Restricted</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FDFBFC] p-6 md:p-12 font-sans max-w-[1600px] mx-auto relative z-0">
