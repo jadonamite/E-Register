@@ -64,9 +64,10 @@ export const AddMemberModal = ({
     <>
       <Dialog open={isOpen} onOpenChange={(open) => { if (!open) requestClose(); }}>
         <DialogContent
+          showCloseButton={false}
           onInteractOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-          className="w-[calc(100%-1.5rem)] sm:max-w-[850px] max-h-[92dvh] flex flex-col rounded-[2rem] sm:rounded-[3rem] p-0 border border-white/50 bg-white/25 backdrop-blur-3xl shadow-[0_40px_100px_rgba(0,0,0,0.25)] outline-none overflow-hidden [&>button]:hidden"
+          onEscapeKeyDown={(e) => { e.preventDefault(); requestClose(); }}
+          className="w-[calc(100%-1.5rem)] sm:max-w-[850px] max-h-[92dvh] flex flex-col rounded-[2rem] sm:rounded-[3rem] p-0 border border-white/50 bg-white/25 backdrop-blur-3xl shadow-[0_40px_100px_rgba(0,0,0,0.25)] outline-none overflow-hidden"
         >
           <VisuallyHidden.Root>
             <DialogTitle>
