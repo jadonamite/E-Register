@@ -30,18 +30,26 @@ export const MemberList = ({ members = [], signedInIds = [], onMarkPresent, onEd
             <div className="flex flex-col gap-1.5">
               <h3 className="font-bold text-stone-900 tracking-tight">{member.name}</h3>
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 bg-pink-100/50 rounded-md text-[9px] font-black uppercase tracking-widest text-pink-600 border border-pink-200/50">
-                  {member.cell}
-                </span>
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-tighter">
-                  {member.level} 
-                </span>
-                <span className={cn(
-                  "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border transition-all shadow-sm",
-                  getRoleStyle(member.role)
-                )}>
-                  {member.role}
-                </span>
+                {member.status === "FirstTimer" ? (
+                  <span className="px-2 py-0.5 bg-amber-100 rounded-md text-[9px] font-black uppercase tracking-widest text-amber-700 border border-amber-200">
+                    First Timer
+                  </span>
+                ) : (
+                  <>
+                    <span className="px-2 py-0.5 bg-pink-100/50 rounded-md text-[9px] font-black uppercase tracking-widest text-pink-600 border border-pink-200/50">
+                      {member.cell}
+                    </span>
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-tighter">
+                      {member.level}
+                    </span>
+                    <span className={cn(
+                      "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border transition-all shadow-sm",
+                      getRoleStyle(member.role)
+                    )}>
+                      {member.role}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
 

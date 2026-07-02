@@ -22,11 +22,19 @@ const MemberSchema = new Schema({
     trim: true,
     default: "None"
   },
+  // Lifecycle: a visitor starts as a FirstTimer and is promoted to Member
+  // (assigned a cell) once they join.
+  status: {
+    type: String,
+    enum: ["FirstTimer", "Member"],
+    default: "Member"
+  },
   // Hierarchy
-  cell: { 
-    type: String, 
-    required: true,
-    trim: true 
+  cell: {
+    type: String,
+    trim: true,
+    // First-timers have no cell yet; required only for full members.
+    required: function (this: any) { return this.status !== "FirstTimer"; }
   },
   seniorCell: { 
     type: String, 
@@ -47,10 +55,17 @@ const MemberSchema = new Schema({
     uppercase: true, 
     trim: true 
   },
-  level: { 
-    type: String, 
-    required: true 
+  level: {
+    type: String,
+    required: function (this: any) { return this.status !== "FirstTimer"; }
   },
+  // First-timer follow-up details (optional; captured at first visit).
+  email: { type: String, trim: true, lowercase: true },
+  birthday: { type: String, trim: true },
+  address: { type: String, trim: true },
+  invitedBy: { type: String, trim: true },
+  visitDate: { type: String, trim: true },
+  isMember: { type: String, trim: true },
   attendance: [{
     date: { type: Date, default: Date.now },
     serviceType: { type: String, required: true }, 

@@ -5,7 +5,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
 import { LogoutButton } from "@/components/LogoutButton";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import {
   TreeStructure,
   IdentificationBadge,
@@ -17,17 +20,87 @@ import {
   UsersThree,
   Users,
   User,
+  CaretDown,
+  Check,
 } from "@phosphor-icons/react";
 
 type Group = { _id: string; name: string; level: "TEAM" | "SENIOR_CELL" | "CELL"; parentId: string | null };
 type Marker = { _id: string; name: string; active: boolean };
 
+/* ---- shared premium primitives (match pfcc / exec aesthetic) ---- */
+
+const inputCls =
+  "h-12 rounded-2xl border-zinc-200 bg-white text-sm font-semibold text-zinc-900 shadow-sm focus-visible:border-zinc-900 focus-visible:ring-4 focus-visible:ring-zinc-100 placeholder:text-zinc-300 px-4";
+
 const Label = ({ children }: { children: React.ReactNode }) => (
   <label className="text-[11px] font-black text-zinc-500 uppercase ml-1 tracking-widest">{children}</label>
 );
 
-const field =
-  "h-12 px-5 rounded-2xl border border-zinc-200 bg-white text-sm font-bold text-zinc-900 outline-none focus:border-zinc-900 focus:ring-4 focus:ring-zinc-100 transition-all shadow-sm w-full";
+const AddButton = ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) => (
+  <Button
+    onClick={onClick}
+    className="w-full h-12 rounded-2xl bg-zinc-950 text-white text-[11px] font-black uppercase tracking-widest hover:bg-black active:scale-[0.98] transition-all shadow-lg"
+  >
+    <Plus size={16} weight="bold" /> {children}
+  </Button>
+);
+
+/** Motion combobox — replaces native <select> to match the app's dropdowns. */
+function Picker({
+  value,
+  options,
+  placeholder,
+  onSelect,
+}: {
+  value: string;
+  options: { id: string; name: string }[];
+  placeholder: string;
+  onSelect: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((o) => o.id === value);
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        className="w-full h-12 px-4 rounded-2xl border border-zinc-200 bg-white text-left text-sm font-semibold text-zinc-900 shadow-sm flex items-center justify-between hover:border-zinc-300 focus:border-zinc-900 focus:ring-4 focus:ring-zinc-100 outline-none transition-all"
+      >
+        {selected ? selected.name : <span className="text-zinc-300 font-medium">{placeholder}</span>}
+        <CaretDown size={16} className={cn("text-zinc-400 transition-transform", open && "rotate-180")} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.15 }}
+            className="absolute top-[calc(100%+6px)] left-0 w-full bg-white rounded-2xl shadow-2xl z-[100] border border-zinc-100 py-2 max-h-[220px] overflow-y-auto"
+          >
+            {options.length === 0 && (
+              <p className="px-4 py-3 text-xs font-bold text-zinc-400">Nothing to choose yet</p>
+            )}
+            {options.map((o) => (
+              <button
+                key={o.id}
+                onClick={() => {
+                  onSelect(o.id);
+                  setOpen(false);
+                }}
+                className="w-full px-4 py-2.5 text-left text-sm font-bold text-zinc-700 hover:bg-zinc-50 flex items-center justify-between"
+              >
+                {o.name}
+                {value === o.id && <Check weight="bold" className="text-emerald-500" />}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /* Structure tab                                                       */
@@ -90,105 +163,114 @@ function StructureTab() {
     }
   };
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-      {/* Builders */}
-      <div className="lg:col-span-2 space-y-5">
-        {/* Team */}
-        <div className="bento-card p-6 space-y-3">
-          <div className="flex items-center gap-2 mb-1">
-            <UsersThree size={20} weight="duotone" className="text-indigo-500" />
-            <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900">New Team</h3>
-          </div>
+  const cards = [
+    {
+      icon: <UsersThree size={20} weight="duotone" className="text-indigo-500" />,
+      title: "New Team",
+      body: (
+        <>
           <Label>Team name</Label>
-          <input className={field} value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="The Winning Team" />
-          <button
-            onClick={() => create(teamName, "TEAM", null, () => setTeamName(""))}
-            className="w-full h-11 rounded-2xl bg-zinc-900 text-white text-xs font-black uppercase tracking-widest hover:bg-black active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-          >
-            <Plus size={16} weight="bold" /> Add Team
-          </button>
-        </div>
-
-        {/* Senior Cell */}
-        <div className="bento-card p-6 space-y-3">
-          <div className="flex items-center gap-2 mb-1">
-            <Users size={20} weight="duotone" className="text-emerald-500" />
-            <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900">New Senior Cell</h3>
-          </div>
+          <Input className={inputCls} value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="The Winning Team" />
+          <AddButton onClick={() => create(teamName, "TEAM", null, () => setTeamName(""))}>Add Team</AddButton>
+        </>
+      ),
+    },
+    {
+      icon: <Users size={20} weight="duotone" className="text-emerald-500" />,
+      title: "New Senior Cell",
+      body: (
+        <>
           <Label>Under team</Label>
-          <select className={field} value={scParent} onChange={(e) => setScParent(e.target.value)}>
-            <option value="">Select team…</option>
-            {teams.map((t) => (
-              <option key={t._id} value={t._id}>{t.name}</option>
-            ))}
-          </select>
+          <Picker value={scParent} placeholder="Select team…" onSelect={setScParent} options={teams.map((t) => ({ id: t._id, name: t.name }))} />
           <Label>Senior cell name</Label>
-          <input className={field} value={scName} onChange={(e) => setScName(e.target.value)} placeholder="Harvesters" />
-          <button
+          <Input className={inputCls} value={scName} onChange={(e) => setScName(e.target.value)} placeholder="Harvesters" />
+          <AddButton
             onClick={() => {
               if (!scParent) return toast.error("Pick a team first");
               create(scName, "SENIOR_CELL", scParent, () => setScName(""));
             }}
-            className="w-full h-11 rounded-2xl bg-zinc-900 text-white text-xs font-black uppercase tracking-widest hover:bg-black active:scale-[0.98] transition-all flex items-center justify-center gap-2"
           >
-            <Plus size={16} weight="bold" /> Add Senior Cell
-          </button>
-        </div>
-
-        {/* Cell */}
-        <div className="bento-card p-6 space-y-3">
-          <div className="flex items-center gap-2 mb-1">
-            <User size={20} weight="duotone" className="text-pink-500" />
-            <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900">New Cell</h3>
-          </div>
+            Add Senior Cell
+          </AddButton>
+        </>
+      ),
+    },
+    {
+      icon: <User size={20} weight="duotone" className="text-pink-500" />,
+      title: "New Cell",
+      body: (
+        <>
           <Label>Under senior cell</Label>
-          <select className={field} value={cellParent} onChange={(e) => setCellParent(e.target.value)}>
-            <option value="">Select senior cell…</option>
-            {seniorCells.map((sc) => (
-              <option key={sc._id} value={sc._id}>{sc.name}</option>
-            ))}
-          </select>
+          <Picker value={cellParent} placeholder="Select senior cell…" onSelect={setCellParent} options={seniorCells.map((sc) => ({ id: sc._id, name: sc.name }))} />
           <Label>Cell name</Label>
-          <input className={field} value={cellName} onChange={(e) => setCellName(e.target.value)} placeholder="Marvelous" />
-          <button
+          <Input className={inputCls} value={cellName} onChange={(e) => setCellName(e.target.value)} placeholder="Marvelous" />
+          <AddButton
             onClick={() => {
               if (!cellParent) return toast.error("Pick a senior cell first");
               create(cellName, "CELL", cellParent, () => setCellName(""));
             }}
-            className="w-full h-11 rounded-2xl bg-zinc-900 text-white text-xs font-black uppercase tracking-widest hover:bg-black active:scale-[0.98] transition-all flex items-center justify-center gap-2"
           >
-            <Plus size={16} weight="bold" /> Add Cell
-          </button>
-        </div>
+            Add Cell
+          </AddButton>
+        </>
+      ),
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+      {/* Builders */}
+      <div className="lg:col-span-2 space-y-5">
+        {cards.map((c, i) => (
+          <motion.div
+            key={c.title}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.06 }}
+            className="bento-card p-6 flex flex-col gap-3"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              {c.icon}
+              <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900">{c.title}</h3>
+            </div>
+            {c.body}
+          </motion.div>
+        ))}
       </div>
 
       {/* Tree */}
-      <div className="lg:col-span-3 bento-card p-8">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="lg:col-span-3 bento-card p-8"
+      >
         <h3 className="text-sm font-black uppercase tracking-widest text-zinc-400 mb-6">Structure</h3>
         {teams.length === 0 && (
-          <p className="text-center py-16 text-sm font-black uppercase tracking-[0.3em] opacity-20">No teams yet</p>
+          <p className="text-center py-20 text-sm font-black uppercase tracking-[0.3em] opacity-20">No teams yet</p>
         )}
         <div className="space-y-6">
-          {teams.map((team) => (
-            <div key={team._id}>
-              <Row label={team.name} tint="indigo" onDelete={() => remove(team)} />
-              <div className="ml-5 border-l-2 border-zinc-100 pl-4 mt-2 space-y-2">
-                {seniorCells.filter((sc) => sc.parentId === team._id).map((sc) => (
-                  <div key={sc._id}>
-                    <Row label={sc.name} tint="emerald" small onDelete={() => remove(sc)} />
-                    <div className="ml-5 border-l-2 border-zinc-100 pl-4 mt-1.5 space-y-1.5">
-                      {cells.filter((c) => c.parentId === sc._id).map((c) => (
-                        <Row key={c._id} label={c.name} tint="pink" small onDelete={() => remove(c)} />
-                      ))}
+          <AnimatePresence>
+            {teams.map((team) => (
+              <motion.div key={team._id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <Row label={team.name} tint="indigo" onDelete={() => remove(team)} />
+                <div className="ml-5 border-l-2 border-zinc-100 pl-4 mt-2 space-y-2">
+                  {seniorCells.filter((sc) => sc.parentId === team._id).map((sc) => (
+                    <div key={sc._id}>
+                      <Row label={sc.name} tint="emerald" small onDelete={() => remove(sc)} />
+                      <div className="ml-5 border-l-2 border-zinc-100 pl-4 mt-1.5 space-y-1.5">
+                        {cells.filter((c) => c.parentId === sc._id).map((c) => (
+                          <Row key={c._id} label={c.name} tint="pink" small onDelete={() => remove(c)} />
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+                  ))}
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -303,29 +385,28 @@ function MarkersTab() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
       {/* Add */}
-      <div className="lg:col-span-2 bento-card p-6 space-y-3 h-fit">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="lg:col-span-2 bento-card p-6 flex flex-col gap-3 h-fit"
+      >
         <div className="flex items-center gap-2 mb-1">
           <IdentificationBadge size={20} weight="duotone" className="text-zinc-700" />
           <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900">New Marker</h3>
         </div>
         <Label>Full name</Label>
-        <input className={field} value={name} onChange={(e) => setName(e.target.value)} placeholder="David Olatunji" />
+        <Input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="David Olatunji" />
         <Label>Initial PIN (4–6 digits)</Label>
-        <input
-          className={field}
+        <Input
+          className={inputCls}
           type="password"
           inputMode="numeric"
           value={pin}
           onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
           placeholder="••••"
         />
-        <button
-          onClick={add}
-          className="w-full h-11 rounded-2xl bg-zinc-900 text-white text-xs font-black uppercase tracking-widest hover:bg-black active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-        >
-          <Plus size={16} weight="bold" /> Register Marker
-        </button>
-      </div>
+        <AddButton onClick={add}>Register Marker</AddButton>
+      </motion.div>
 
       {/* List */}
       <div className="lg:col-span-3 space-y-3">
@@ -391,28 +472,28 @@ function MarkersTab() {
 
 export default function AdminPage() {
   return (
-    <div className="min-h-screen bg-[#FDFBFC] p-6 md:p-12 font-sans max-w-[1400px] mx-auto">
+    <div className="min-h-screen bg-[#FDFBFC] p-6 md:p-12 max-w-[1400px] mx-auto">
       <header className="flex flex-col lg:flex-row justify-between items-center gap-6 mb-12">
         <Logo />
         <LogoutButton />
       </header>
 
-      <div className="mb-10">
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
         <h1 className="text-5xl font-black tracking-tighter text-stone-900">Admin</h1>
         <p className="text-xs font-bold uppercase tracking-[0.4em] opacity-40 mt-2">Structure &amp; Protocol Staff</p>
-      </div>
+      </motion.div>
 
       <Tabs defaultValue="structure" className="w-full">
-        <TabsList className="bg-zinc-100 p-1.5 rounded-2xl mb-8">
+        <TabsList className="bg-zinc-100 p-1.5 rounded-2xl mb-8 h-auto">
           <TabsTrigger
             value="structure"
-            className="rounded-xl px-6 py-2.5 text-[11px] font-black uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-black text-zinc-400 flex items-center gap-2"
+            className="rounded-xl px-6 py-2.5 text-[11px] font-black uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm text-zinc-400 flex items-center gap-2"
           >
             <TreeStructure size={16} weight="bold" /> Structure
           </TabsTrigger>
           <TabsTrigger
             value="markers"
-            className="rounded-xl px-6 py-2.5 text-[11px] font-black uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-black text-zinc-400 flex items-center gap-2"
+            className="rounded-xl px-6 py-2.5 text-[11px] font-black uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm text-zinc-400 flex items-center gap-2"
           >
             <IdentificationBadge size={16} weight="bold" /> Markers
           </TabsTrigger>
