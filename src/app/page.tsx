@@ -10,25 +10,33 @@ import { Input } from "@/components/ui/input";
 export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
 
-    if (password === "Register") {
-      // 1. Set the Cookie (The "Gate Pass" for Middleware)
-      document.cookie = "user-role=PFCC; path=/; max-age=86400; SameSite=Lax";
-      // 2. Redirect
-      router.push("/pfcc");
-    } else if (password === "Executive") {
-      // 1. Set the Executive Cookie
-      document.cookie = "user-role=EXEC; path=/; max-age=86400; SameSite=Lax";
-      // 2. Redirect
-      router.push("/exec");
-    } else {
+    setLoading(true);
+    try {
+      // Codes are verified server-side; the signed session cookie is set by the
+      // API (httpOnly — the browser never sees the token or the codes).
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: password }),
+      });
+
+      if (!res.ok) throw new Error("Invalid code");
+
+      const { role } = await res.json();
+      router.push(role === "EXEC" ? "/exec" : "/pfcc");
+    } catch {
       // Shake animation trigger
       setError(true);
-      setTimeout(() => setError(false), 500); 
+      setTimeout(() => setError(false), 500);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -90,11 +98,12 @@ export default function LoginPage() {
           </div>
 
           <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Button 
+            <Button
               type="submit"
-              className="w-full h-14 rounded-2xl bg-white text-black font-black shadow-lg hover:shadow-xl transition-all border border-white/40"
+              disabled={loading}
+              className="w-full h-14 rounded-2xl bg-white text-black font-black shadow-lg hover:shadow-xl transition-all border border-white/40 disabled:opacity-60"
             >
-              Authenticate
+              {loading ? "Authenticating..." : "Authenticate"}
             </Button>
           </motion.div>
         </form>

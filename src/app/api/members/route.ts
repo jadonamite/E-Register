@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import Member from "@/models/Member";
+import { getSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
+const unauthorized = () =>
+  NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
 export async function GET() {
   try {
+    if (!(await getSession())) return unauthorized();
     await connectDB();
     const members = await Member.find({}).sort({ createdAt: -1 }).lean();
     return NextResponse.json(members, { status: 200 });
@@ -17,6 +22,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    if (!(await getSession())) return unauthorized();
     await connectDB();
     const body = await req.json();
 
@@ -40,6 +46,7 @@ export async function POST(req: Request) {
 // 4. NEW: Update Member Details
 export async function PUT(req: Request) {
   try {
+    if (!(await getSession())) return unauthorized();
     await connectDB();
     const body = await req.json();
     const { _id, ...updateData } = body;

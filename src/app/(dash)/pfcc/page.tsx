@@ -7,6 +7,7 @@ import { AddMemberModal } from "@/components/AddMemberModal";
 import { useMembers } from "@/hooks/use-members";
 import { MagnifyingGlass, Pulse, CalendarBlank, Plus, Monitor, WarningCircle } from "@phosphor-icons/react";
 import { format } from "date-fns";
+import { LogoutButton } from "@/components/LogoutButton";
 
 export default function PFCCDashboard() {
   const [service, setService] = useState("Sunday");
@@ -100,6 +101,8 @@ export default function PFCCDashboard() {
               </button>
             ))}
           </div>
+
+          <LogoutButton />
         </div>
       </header>
 

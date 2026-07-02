@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import Member from "@/models/Member";
+import { getSession } from "@/lib/auth";
+
+const unauthorized = () =>
+  NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
 export async function POST(req: Request) {
   try {
+    if (!(await getSession())) return unauthorized();
     await connectDB();
-    
+
     const { memberId, serviceType, date } = await req.json();
 
     if (!memberId || !serviceType) {
@@ -54,6 +59,7 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
+    if (!(await getSession())) return unauthorized();
     await connectDB();
     const { memberId, serviceType, date } = await req.json();
 

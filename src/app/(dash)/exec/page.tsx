@@ -6,6 +6,7 @@ import { GrowthChart } from "@/components/exec/GrowthChart";
 import { ConnectivityEffect } from "@/components/exec/ConnectivityEffect";
 import { motion } from "framer-motion";
 import { Users, Warning, ShieldCheck, Lightning, UserPlus, TrendUp, Target, CaretRight } from "@phosphor-icons/react";
+import { LogoutButton } from "@/components/LogoutButton";
 
 export default function ExecutiveDashboard() {
   const [data, setData] = useState<any>(null);
@@ -53,8 +54,11 @@ export default function ExecutiveDashboard() {
       <div className="relative z-10">
         <header className="flex justify-between items-center mb-8 pl-2">
           <Logo />
-          <div className="glass-frosted px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest text-gray-400">
-            Feb 2026
+          <div className="flex items-center gap-3">
+            <div className="glass-frosted px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest text-gray-400">
+              Feb 2026
+            </div>
+            <LogoutButton />
           </div>
         </header>
 
