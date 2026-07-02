@@ -71,6 +71,7 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
     } catch (error: any) {
       setMembers(prev => prev.filter(m => m._id !== tempId));
       toast.error(error.message || "Failed to save member");
+      throw error; // let the modal keep itself open with the user's input intact
     }
   };
 
@@ -100,6 +101,7 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
         setMembers(prev => prev.map(m => m._id === data._id ? originalMember : m));
       }
       toast.error("Update failed: Network Error");
+      throw error; // surface to the modal so it stays open with the edits intact
     }
   };
 
@@ -127,11 +129,14 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
         }),
       });
 
-      if (!res.ok) throw new Error("Failed to sync");
-    } catch (error) {
+      if (!res.ok) {
+        const { error: message } = await res.json().catch(() => ({ error: "" }));
+        throw new Error(message || "Failed to sync");
+      }
+    } catch (error: any) {
       if (isPresent) setSignedInIds(prev => [...prev, id]);
       else setSignedInIds(prev => prev.filter(sid => sid !== id));
-      toast.error("Attendance sync failed");
+      toast.error(error?.message || "Attendance sync failed");
     }
   };
 

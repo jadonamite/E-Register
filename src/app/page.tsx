@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
+import { ArrowRight } from "@phosphor-icons/react";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,22 +22,30 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      // Codes are verified server-side; the signed session cookie is set by the
-      // API (httpOnly — the browser never sees the token or the codes).
+      // Code is verified server-side; the signed session cookie is set by the
+      // API (httpOnly — the browser never sees the token or the code).
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: password }),
       });
 
-      if (!res.ok) throw new Error("Invalid code");
+      if (!res.ok) {
+        // Surface the server's real reason (e.g. "Invalid access code").
+        const { error: message } = await res.json().catch(() => ({ error: "" }));
+        setError(true);
+        setTimeout(() => setError(false), 500);
+        toast.error(message || "Invalid access code");
+        return;
+      }
 
-      const { role } = await res.json();
-      router.push(role === "EXEC" ? "/exec" : "/pfcc");
+      toast.success("Access granted");
+      router.push("/exec");
     } catch {
-      // Shake animation trigger
+      // Network / server unreachable — distinct from a wrong code.
       setError(true);
       setTimeout(() => setError(false), 500);
+      toast.error("Network error — check your connection and try again");
     } finally {
       setLoading(false);
     }
@@ -82,7 +93,7 @@ export default function LoginPage() {
         <div className="text-center">
           <Logo />
           <p className="text-[10px] font-bold tracking-[0.4em] opacity-30 uppercase mt-4">
-            Ministry Portal Access
+            Leadership Access
           </p>
         </div>
 
@@ -108,6 +119,14 @@ export default function LoginPage() {
           </motion.div>
         </form>
         
+        <Link
+          href="/pfcc"
+          className="group -mt-4 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 transition-colors"
+        >
+          Attendance Register
+          <ArrowRight size={14} weight="bold" className="group-hover:translate-x-0.5 transition-transform" />
+        </Link>
+
         <footer className="flex flex-col items-center gap-1 opacity-20">
           <p className="text-[9px] font-bold tracking-tighter uppercase">
             Proprietary System • Christ Embassy

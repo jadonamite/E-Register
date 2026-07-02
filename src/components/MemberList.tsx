@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Check, PencilSimple } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
-export const MemberList = ({ members = [], signedInIds = [], onMarkPresent, onEdit }: any) => {
+export const MemberList = ({ members = [], signedInIds = [], onMarkPresent, onEdit, canMark = true }: any) => {
   const getRoleStyle = (role: string) => {
     switch (role) {
       case "Pastor": return "bg-amber-100 text-amber-700 border-amber-200";
@@ -46,18 +46,23 @@ export const MemberList = ({ members = [], signedInIds = [], onMarkPresent, onEd
             </div>
 
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => onEdit(member)}
-                className="w-10 h-10 rounded-full bg-white border border-zinc-200 flex items-center justify-center text-zinc-400 hover:text-zinc-900 hover:border-zinc-900 transition-all"
-              >
-                <PencilSimple weight="bold" size={18} />
-              </button>
+              {canMark && (
+                <button
+                  onClick={() => onEdit(member)}
+                  className="w-10 h-10 rounded-full bg-white border border-zinc-200 flex items-center justify-center text-zinc-400 hover:text-zinc-900 hover:border-zinc-900 transition-all"
+                >
+                  <PencilSimple weight="bold" size={18} />
+                </button>
+              )}
 
               <button
-                onClick={() => onMarkPresent(member._id)}
+                onClick={() => canMark && onMarkPresent(member._id)}
+                disabled={!canMark}
                 className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm ${
-                  signedInIds.includes(member._id)
-                  ? "bg-emerald-500 text-white shadow-emerald-100 hover:bg-red-500" 
+                  !canMark
+                  ? "bg-zinc-100 text-zinc-300 cursor-not-allowed"
+                  : signedInIds.includes(member._id)
+                  ? "bg-emerald-500 text-white shadow-emerald-100 hover:bg-red-500"
                   : "bg-zinc-100 text-zinc-400 hover:bg-zinc-900 hover:text-white"
                 }`}
               >

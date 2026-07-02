@@ -5,7 +5,8 @@ import { Logo } from "@/components/Logo";
 import { GrowthChart } from "@/components/exec/GrowthChart"; 
 import { ConnectivityEffect } from "@/components/exec/ConnectivityEffect";
 import { motion } from "framer-motion";
-import { Users, Warning, ShieldCheck, Lightning, UserPlus, TrendUp, Target, CaretRight } from "@phosphor-icons/react";
+import { Users, Warning, ShieldCheck, Lightning, UserPlus, TrendUp, Target, CaretRight, GearSix } from "@phosphor-icons/react";
+import Link from "next/link";
 import { LogoutButton } from "@/components/LogoutButton";
 
 export default function ExecutiveDashboard() {
@@ -58,6 +59,12 @@ export default function ExecutiveDashboard() {
             <div className="glass-frosted px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest text-gray-400">
               Feb 2026
             </div>
+            <Link
+              href="/admin"
+              className="flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors"
+            >
+              <GearSix size={16} weight="bold" /> Admin
+            </Link>
             <LogoutButton />
           </div>
         </header>

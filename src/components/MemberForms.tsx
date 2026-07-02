@@ -1,16 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CaretDown, Check } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
-// The Source of Truth for Hierarchy
-const HIERARCHY_DATA = [
-  { cell: "Marvelous", seniorCell: "Harvesters", team: "The Winning Team" },
-  { cell: "Zion", seniorCell: "Harvesters", team: "The Winning Team" },
-  { cell: "Grace", seniorCell: "Eagles", team: "The Winning Team" },
-];
+// One flattened cell row resolved from the Group tree (Team ⊃ Senior Cell ⊃ Cell).
+type CellRow = { cell: string; seniorCell: string; team: string };
 
 // The Full Hierarchy of Roles
 const ROLES = ["Member", "BST", "Cell Leader", "Senior Cell Leader", "Team Lead", "Pastor"];
@@ -46,31 +42,63 @@ const PillToggle = ({ value, onChange }: { value: string, onChange: (val: string
   );
 };
 
-export const ExistingForm = ({ onSubmit, initialData }: { onSubmit: (data: any) => void, initialData?: any }) => {
-  const [form, setForm] = useState(initialData || { 
-    name: "", phone: "", sex: "Male", cell: "", seniorCell: "", team: "", schoolDept: "", churchDept: "", level: "", role: "Member" 
+type FormProps = {
+  onSubmit: (data: any) => void;
+  saving?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
+};
+
+export const ExistingForm = ({ onSubmit, initialData, saving, onDirtyChange }: FormProps & { initialData?: any }) => {
+  const [form, setForm] = useState(initialData || {
+    name: "", phone: "", sex: "Male", cell: "", seniorCell: "", team: "", schoolDept: "", churchDept: "", level: "", role: "Member"
   });
   const [dropdowns, setDropdowns] = useState({ cell: false, role: false });
+  const [hierarchy, setHierarchy] = useState<CellRow[]>([]);
+
+  // Baseline captured on mount; the modal uses this to guard accidental discard.
+  const baseline = useRef(JSON.stringify(form));
+  useEffect(() => {
+    onDirtyChange?.(JSON.stringify(form) !== baseline.current);
+  }, [form, onDirtyChange]);
+
+  // Load the registered structure and flatten it to cell → seniorCell → team.
+  useEffect(() => {
+    fetch("/api/groups")
+      .then(r => r.json())
+      .then((groups: any[]) => {
+        const byId: Record<string, any> = Object.fromEntries(groups.map(g => [g._id, g]));
+        const rows = groups
+          .filter(g => g.level === "CELL")
+          .map((cell) => {
+            const seniorCell = cell.parentId ? byId[cell.parentId] : null;
+            const team = seniorCell?.parentId ? byId[seniorCell.parentId] : null;
+            return { cell: cell.name, seniorCell: seniorCell?.name || "", team: team?.name || "" };
+          })
+          .sort((a, b) => a.cell.localeCompare(b.cell));
+        setHierarchy(rows);
+      })
+      .catch(() => {});
+  }, []);
 
   // Auto-fill Logic for Hierarchy
   useEffect(() => {
-    const match = HIERARCHY_DATA.find(h => h.cell.toLowerCase() === form.cell.toLowerCase());
+    const match = hierarchy.find(h => h.cell.toLowerCase() === form.cell.toLowerCase());
     if (match) {
       setForm((prev: any) => ({ ...prev, seniorCell: match.seniorCell, team: match.team }));
     }
-  }, [form.cell]);
+  }, [form.cell, hierarchy]);
 
   // Combobox Filtering Logic: Show all if input is focused but empty/default, otherwise filter
-  const filteredCells = form.cell === "" 
-    ? HIERARCHY_DATA 
-    : HIERARCHY_DATA.filter(h => h.cell.toLowerCase().includes(form.cell.toLowerCase()));
+  const filteredCells = form.cell === ""
+    ? hierarchy
+    : hierarchy.filter(h => h.cell.toLowerCase().includes(form.cell.toLowerCase()));
 
   const filteredRoles = (form.role === "" || form.role === "Member")
     ? ROLES 
     : ROLES.filter(r => r.toLowerCase().includes(form.role.toLowerCase()));
 
   return (
-    <div className="grid grid-cols-12 gap-x-4 gap-y-5">
+    <div className="grid grid-cols-1 sm:grid-cols-12 gap-x-4 gap-y-5">
       {/* Row 1: Full Names & Sex Pill Toggle */}
       <div className="col-span-9 space-y-1.5">
         <Label>Full Names</Label>
@@ -167,25 +195,30 @@ export const ExistingForm = ({ onSubmit, initialData }: { onSubmit: (data: any) 
         <GlassInput value={form.schoolDept} onChange={(e:any) => setForm({...form, schoolDept: e.target.value})} />
       </div>
 
-      <div className="col-span-12 mt-4">
-        <Button onClick={() => onSubmit(form)} 
-          className="w-full h-16 rounded-full bg-zinc-950 text-white hover:bg-black text-lg font-black shadow-2xl transition-all active:scale-[0.98]"
+      <div className="col-span-1 sm:col-span-12 mt-4">
+        <Button onClick={() => onSubmit(form)} disabled={saving}
+          className="w-full h-16 rounded-full bg-zinc-950 text-white hover:bg-black text-lg font-black shadow-2xl transition-all active:scale-[0.98] disabled:opacity-60"
         >
-          {initialData ? "Update Member" : "Confirm Entry"}
+          {saving ? "Saving..." : initialData ? "Update Member" : "Confirm Entry"}
         </Button>
       </div>
     </div>
   );
 };
 
-export const FirstTimerForm = ({ onSubmit }: { onSubmit: (data: any) => void }) => {
+export const FirstTimerForm = ({ onSubmit, saving, onDirtyChange }: FormProps) => {
   const [form, setForm] = useState({
-    name: "", sex: "Male", birthday: "", schoolDept: "", level: "", address: "", 
+    name: "", sex: "Male", birthday: "", schoolDept: "", level: "", address: "",
     phone: "", email: "", invitedBy: "", isMember: "No", visitDate: ""
   });
 
+  const baseline = useRef(JSON.stringify(form));
+  useEffect(() => {
+    onDirtyChange?.(JSON.stringify(form) !== baseline.current);
+  }, [form, onDirtyChange]);
+
   return (
-    <div className="grid grid-cols-12 gap-x-4 gap-y-4">
+    <div className="grid grid-cols-1 sm:grid-cols-12 gap-x-4 gap-y-4">
       <div className="col-span-9 space-y-1.5">
         <Label>Full Names</Label>
         <GlassInput value={form.name} onChange={(e:any) => setForm({...form, name: e.target.value})} />
@@ -226,11 +259,11 @@ export const FirstTimerForm = ({ onSubmit }: { onSubmit: (data: any) => void }) 
         <Label>Visit Preference</Label>
         <GlassInput value={form.visitDate} onChange={(e:any) => setForm({...form, visitDate: e.target.value})} />
       </div>
-      <div className="col-span-12 mt-4">
-        <Button onClick={() => onSubmit(form)} 
-          className="w-full h-16 rounded-full bg-zinc-950 text-white hover:bg-black text-lg font-black shadow-2xl transition-all active:scale-[0.98]"
+      <div className="col-span-1 sm:col-span-12 mt-4">
+        <Button onClick={() => onSubmit(form)} disabled={saving}
+          className="w-full h-16 rounded-full bg-zinc-950 text-white hover:bg-black text-lg font-black shadow-2xl transition-all active:scale-[0.98] disabled:opacity-60"
         >
-          Welcome First-Timer
+          {saving ? "Saving..." : "Welcome First-Timer"}
         </Button>
       </div>
     </div>

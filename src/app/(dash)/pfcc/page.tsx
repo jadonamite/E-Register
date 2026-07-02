@@ -7,13 +7,14 @@ import { AddMemberModal } from "@/components/AddMemberModal";
 import { useMembers } from "@/hooks/use-members";
 import { MagnifyingGlass, Pulse, CalendarBlank, Plus, Monitor, WarningCircle } from "@phosphor-icons/react";
 import { format } from "date-fns";
-import { LogoutButton } from "@/components/LogoutButton";
+import { MarkerBar } from "@/components/MarkerBar";
 
 export default function PFCCDashboard() {
   const [service, setService] = useState("Sunday");
   const [date, setDate] = useState<Date>(new Date());
   const [isMobile, setIsMobile] = useState(false);
-  
+  const [canMark, setCanMark] = useState(false);
+
   const [editingMember, setEditingMember] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -101,13 +102,14 @@ export default function PFCCDashboard() {
               </button>
             ))}
           </div>
-
-          <LogoutButton />
         </div>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
         <div className="lg:col-span-8">
+          <div className="mb-8">
+            <MarkerBar onIdentityChange={(mark) => setCanMark(mark)} />
+          </div>
           <div className="flex flex-col gap-8 mb-10">
             <div>
               <h1 className="text-6xl font-black tracking-tighter text-stone-900">Attendance</h1>
@@ -129,11 +131,12 @@ export default function PFCCDashboard() {
             </div>
           </div>
           
-          <MemberList 
-            members={filteredMembers} 
-            signedInIds={signedInIds} 
+          <MemberList
+            members={filteredMembers}
+            signedInIds={signedInIds}
             onMarkPresent={markPresent}
             onEdit={handleEditInitiated}
+            canMark={canMark}
           />
         </div>
 
@@ -170,8 +173,8 @@ export default function PFCCDashboard() {
           }} 
         />
         
-        {!isModalOpen && (
-          <button 
+        {!isModalOpen && canMark && (
+          <button
             onClick={handleAddNew}
             className="w-20 h-20 rounded-full bg-black text-white flex items-center justify-center shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:scale-110 active:scale-90 transition-all"
           >

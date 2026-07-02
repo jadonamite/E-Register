@@ -3,12 +3,13 @@ import connectDB from "@/lib/db";
 import Member from "@/models/Member";
 import { getSession } from "@/lib/auth";
 
-const unauthorized = () =>
-  NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+const notMarker = () =>
+  NextResponse.json({ error: "Sign in as a marker to mark attendance" }, { status: 403 });
 
 export async function POST(req: Request) {
   try {
-    if (!(await getSession())) return unauthorized();
+    const session = await getSession();
+    if (session?.kind !== "marker") return notMarker();
     await connectDB();
 
     const { memberId, serviceType, date } = await req.json();
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
           attendance: {
             date: targetDate,
             serviceType: serviceType,
-            status: "Present"
+            markedBy: session.name
           }
         }
       }
@@ -59,7 +60,8 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    if (!(await getSession())) return unauthorized();
+    const session = await getSession();
+    if (session?.kind !== "marker") return notMarker();
     await connectDB();
     const { memberId, serviceType, date } = await req.json();
 
