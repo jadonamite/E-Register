@@ -10,7 +10,8 @@ const unauthorized = () =>
 
 export async function GET() {
   try {
-    if (!(await getSession())) return unauthorized();
+    // Public read — guests view the register read-only. Mutations below still
+    // require a session.
     await connectDB();
     const members = await Member.find({}).sort({ createdAt: -1 }).lean();
     return NextResponse.json(members, { status: 200 });

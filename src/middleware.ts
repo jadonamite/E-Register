@@ -12,13 +12,12 @@ export async function middleware(request: NextRequest) {
 
   const denied = () => NextResponse.redirect(new URL('/', request.url))
 
-  // Protect PFCC route — requires a valid PFCC session.
-  if (pathname.startsWith('/pfcc') && session?.role !== 'PFCC') {
-    return denied()
-  }
-
-  // Protect Exec route — requires a valid EXEC session.
-  if (pathname.startsWith('/exec') && session?.role !== 'EXEC') {
+  // Exec + Admin require a leadership session. The attendance page (/pfcc) is
+  // open to guests read-only; marking is gated at the API by a marker session.
+  if (
+    (pathname.startsWith('/exec') || pathname.startsWith('/admin')) &&
+    session?.kind !== 'exec'
+  ) {
     return denied()
   }
 
@@ -26,5 +25,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/pfcc/:path*', '/exec/:path*'],
+  matcher: ['/exec/:path*', '/admin/:path*'],
 }
