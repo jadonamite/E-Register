@@ -14,20 +14,19 @@ export async function GET() {
     await connectDB();
     const members = await Member.find({}).lean();
     
-    const totalMembers = members.length;
+    // Split visitors from full members so first-timers don't skew membership stats.
+    const memberDocs = members.filter((m: any) => m.status !== "FirstTimer");
+    const totalMembers = memberDocs.length;
 
-    // 1. FIRST TIMERS (30 Days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const firstTimers = members.filter((m: any) => 
-      new Date(m.createdAt) > thirtyDaysAgo
-    ).length;
+    // 1. FIRST TIMERS — explicit lifecycle status, not just "recently created".
+    const firstTimers = members.filter((m: any) => m.status === "FirstTimer").length;
 
-    // 2. RETENTION RISK (Absent 2 weeks)
+    // 2. RETENTION RISK (full members absent 2+ weeks). First-timers are excluded:
+    //    a brand-new visitor with no attendance yet isn't a retention risk.
     const twoWeeksAgo = new Date();
     twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
 
-    const riskList = members.filter((m: any) => {
+    const riskList = memberDocs.filter((m: any) => {
       if (!m.attendance || m.attendance.length === 0) return true;
       const lastSeen = new Date(Math.max(...m.attendance.map((a: any) => new Date(a.date).getTime())));
       return lastSeen < twoWeeksAgo;
@@ -39,20 +38,20 @@ export async function GET() {
     const roleStats: Record<string, number> = {};
     const attendanceMap: Record<string, number> = {};
 
-    members.forEach((m: any) => {
-      // Cell Distribution
+    // Distribution over full members only (first-timers have no cell/team yet).
+    memberDocs.forEach((m: any) => {
       const cell = m.cell || "Unknown";
       cellStats[cell] = (cellStats[cell] || 0) + 1;
 
-      // Team Distribution (New)
       const team = m.team || "No Team";
       teamStats[team] = (teamStats[team] || 0) + 1;
 
-      // Role Distribution (New)
       const role = m.role || "Member";
       roleStats[role] = (roleStats[role] || 0) + 1;
+    });
 
-      // Attendance History
+    // Attendance trend spans everyone who attended, first-timers included.
+    members.forEach((m: any) => {
       m.attendance?.forEach((a: any) => {
         const dateKey = new Date(a.date).toISOString().split('T')[0];
         attendanceMap[dateKey] = (attendanceMap[dateKey] || 0) + 1;

@@ -41,9 +41,9 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
 
   // 2. Filter Logic
   const filteredMembers = useMemo(() => {
-    return members.filter(m => 
-      m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.cell.toLowerCase().includes(searchQuery.toLowerCase())
+    return members.filter(m =>
+      (m.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (m.cell || "").toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [searchQuery, members]);
 

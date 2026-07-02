@@ -50,7 +50,7 @@ type FormProps = {
 
 export const ExistingForm = ({ onSubmit, initialData, saving, onDirtyChange }: FormProps & { initialData?: any }) => {
   const [form, setForm] = useState(initialData || {
-    name: "", phone: "", sex: "Male", cell: "", seniorCell: "", team: "", schoolDept: "", churchDept: "", level: "", role: "Member"
+    name: "", phone: "", sex: "Male", cell: "", seniorCell: "", team: "", schoolDept: "", churchDept: "", level: "", role: "Member", status: "Member"
   });
   const [dropdowns, setDropdowns] = useState({ cell: false, role: false });
   const [hierarchy, setHierarchy] = useState<CellRow[]>([]);
@@ -209,7 +209,7 @@ export const ExistingForm = ({ onSubmit, initialData, saving, onDirtyChange }: F
 export const FirstTimerForm = ({ onSubmit, saving, onDirtyChange }: FormProps) => {
   const [form, setForm] = useState({
     name: "", sex: "Male", birthday: "", schoolDept: "", level: "", address: "",
-    phone: "", email: "", invitedBy: "", isMember: "No", visitDate: ""
+    phone: "", email: "", invitedBy: "", isMember: "No", visitDate: "", status: "FirstTimer"
   });
 
   const baseline = useRef(JSON.stringify(form));
