@@ -66,21 +66,63 @@ export async function POST(req: Request) {
   }
 }
 
-/** PATCH — exec only. Rename a node (name propagates to the member-form tree). */
+/**
+ * PATCH — exec only. Two actions:
+ *   { _id, name }        → rename (propagates to the member-form tree)
+ *   { _id, promote:true} → lift one level: CELL→SENIOR_CELL, SENIOR_CELL→TEAM,
+ *                          reparenting to the correct ancestor.
+ */
 export async function PATCH(req: Request) {
   try {
     const session = await getSession();
     if (session?.kind !== "exec") return forbidden();
 
     await connectDB();
-    const { _id, name } = await req.json();
-    if (!_id || !name?.trim()) {
-      return NextResponse.json({ error: "Id and name are required" }, { status: 400 });
-    }
+    const { _id, name, promote } = await req.json();
+    if (!_id) return NextResponse.json({ error: "Id is required" }, { status: 400 });
 
     const group = await Group.findById(_id);
     if (!group) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+    if (promote) {
+      if (group.level === "TEAM") {
+        return NextResponse.json({ error: "A team is already at the top level" }, { status: 400 });
+      }
+
+      let newLevel: string;
+      let newParentId: string | null;
+
+      if (group.level === "CELL") {
+        // Becomes a senior cell under the team above its current senior cell.
+        newLevel = "SENIOR_CELL";
+        const parentSenior = group.parentId ? await Group.findById(group.parentId) : null;
+        newParentId = parentSenior?.parentId ? String(parentSenior.parentId) : null;
+        if (!newParentId) {
+          return NextResponse.json({ error: "No parent team to attach to — create a team first" }, { status: 409 });
+        }
+      } else {
+        // SENIOR_CELL → TEAM. Its cells would be orphaned, so block until they move.
+        const childCount = await Group.countDocuments({ parentId: _id });
+        if (childCount > 0) {
+          return NextResponse.json({ error: "Promote or move its cells first" }, { status: 409 });
+        }
+        newLevel = "TEAM";
+        newParentId = null;
+      }
+
+      const clash = await Group.findOne({ name: group.name, level: newLevel, _id: { $ne: _id } });
+      if (clash) {
+        return NextResponse.json({ error: `A ${newLevel.replace("_", " ").toLowerCase()} named "${group.name}" already exists` }, { status: 409 });
+      }
+
+      group.level = newLevel;
+      group.parentId = newParentId;
+      await group.save();
+      return NextResponse.json(group, { status: 200 });
+    }
+
+    // Rename
+    if (!name?.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 });
     const dup = await Group.findOne({ name: name.trim(), level: group.level, _id: { $ne: _id } });
     if (dup) return NextResponse.json({ error: "That name already exists at this level" }, { status: 409 });
 
@@ -88,7 +130,7 @@ export async function PATCH(req: Request) {
     await group.save();
     return NextResponse.json(group, { status: 200 });
   } catch {
-    return NextResponse.json({ error: "Failed to rename" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to update" }, { status: 500 });
   }
 }
 

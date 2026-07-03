@@ -23,6 +23,7 @@ import {
   CaretDown,
   Check,
   PencilSimple,
+  ArrowFatUp,
   X,
 } from "@phosphor-icons/react";
 
@@ -165,6 +166,27 @@ function StructureTab() {
     }
   };
 
+  const promote = async (g: Group) => {
+    const target = g.level === "CELL" ? "Senior Cell" : g.level === "SENIOR_CELL" ? "Team" : null;
+    if (!target) return toast.error("Already at the top level");
+    if (!window.confirm(`Promote "${g.name}" to a ${target}?`)) return;
+    try {
+      const res = await fetch("/api/groups", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ _id: g._id, promote: true }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: "" }));
+        return toast.error(error || "Failed to promote");
+      }
+      toast.success(`${g.name} promoted to ${target}`);
+      load();
+    } catch {
+      toast.error("Network error");
+    }
+  };
+
   const remove = async (g: Group) => {
     try {
       const res = await fetch("/api/groups", {
@@ -277,10 +299,10 @@ function StructureTab() {
                 <div className="ml-5 border-l-2 border-zinc-100 pl-4 mt-2 space-y-2">
                   {seniorCells.filter((sc) => sc.parentId === team._id).map((sc) => (
                     <div key={sc._id}>
-                      <Row label={sc.name} tint="emerald" small onRename={(n) => rename(sc, n)} onDelete={() => remove(sc)} />
+                      <Row label={sc.name} tint="emerald" small onRename={(n) => rename(sc, n)} onPromote={() => promote(sc)} onDelete={() => remove(sc)} />
                       <div className="ml-5 border-l-2 border-zinc-100 pl-4 mt-1.5 space-y-1.5">
                         {cells.filter((c) => c.parentId === sc._id).map((c) => (
-                          <Row key={c._id} label={c.name} tint="pink" small onRename={(n) => rename(c, n)} onDelete={() => remove(c)} />
+                          <Row key={c._id} label={c.name} tint="pink" small onRename={(n) => rename(c, n)} onPromote={() => promote(c)} onDelete={() => remove(c)} />
                         ))}
                       </div>
                     </div>
@@ -300,12 +322,14 @@ function Row({
   tint,
   small,
   onRename,
+  onPromote,
   onDelete,
 }: {
   label: string;
   tint: "indigo" | "emerald" | "pink";
   small?: boolean;
   onRename: (name: string) => void;
+  onPromote?: () => void;
   onDelete: () => void;
 }) {
   const dot = { indigo: "bg-indigo-400", emerald: "bg-emerald-400", pink: "bg-pink-400" }[tint];
@@ -367,6 +391,11 @@ function Row({
         </div>
       ) : (
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onPromote && (
+            <button onClick={onPromote} title="Promote up one level" className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all">
+              <ArrowFatUp size={15} weight="bold" />
+            </button>
+          )}
           <button onClick={() => setEditing(true)} title="Rename" className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-300 hover:text-zinc-900 hover:bg-zinc-100 transition-all">
             <PencilSimple size={14} weight="bold" />
           </button>
