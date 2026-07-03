@@ -60,6 +60,9 @@ export const AddMemberModal = ({
     }
   };
 
+  // A first-timer just promoted arrives with status "Member" but no cell yet.
+  const isConverting = !!initialData && initialData.status === "Member" && !initialData.cell;
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => { if (!open) requestClose(); }}>
@@ -89,10 +92,10 @@ export const AddMemberModal = ({
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8 sm:mb-10 pr-12">
                 <header>
                   <h2 className="text-2xl sm:text-4xl font-black tracking-tighter text-zinc-950">
-                    {initialData ? "Update Info" : mode === "existing" ? "Add Member" : "First-Timer"}
+                    {isConverting ? "Convert to Member" : initialData ? "Update Info" : mode === "existing" ? "Add Member" : "First-Timer"}
                   </h2>
                   <p className="text-[10px] font-black text-zinc-700 uppercase tracking-[0.4em] mt-1">
-                    {initialData ? `Editing: ${initialData.name}` : "Central Registry"}
+                    {isConverting ? `Assign ${initialData.name} a cell` : initialData ? `Editing: ${initialData.name}` : "Central Registry"}
                   </p>
                 </header>
 

@@ -27,6 +27,11 @@ export async function POST(req: Request) {
     await connectDB();
     const body = await req.json();
 
+    // Full members must be assigned a cell; first-timers are exempt.
+    if ((body.status ?? "Member") === "Member" && !body.cell) {
+      return NextResponse.json({ error: "Assign a cell before saving a member" }, { status: 400 });
+    }
+
     const exists = await Member.findOne({ phone: body.phone });
     if (exists) {
       return NextResponse.json({ error: "Phone number already registered" }, { status: 409 });
@@ -53,6 +58,11 @@ export async function PUT(req: Request) {
     const { _id, ...updateData } = body;
 
     if (!_id) return NextResponse.json({ error: "Member ID required" }, { status: 400 });
+
+    // Converting a first-timer (or editing a member) into Member status requires a cell.
+    if (updateData.status === "Member" && !updateData.cell) {
+      return NextResponse.json({ error: "Assign a cell to complete the conversion" }, { status: 400 });
+    }
 
     const updatedMember = await Member.findByIdAndUpdate(
       _id,

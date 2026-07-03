@@ -29,12 +29,12 @@ const MemberSchema = new Schema({
     enum: ["FirstTimer", "Member"],
     default: "Member"
   },
-  // Hierarchy
+  // Hierarchy. Optional at the schema level (first-timers have no cell yet);
+  // "members must have a cell" is enforced in the API route, which behaves
+  // correctly on both create and update (unlike cross-field schema validators).
   cell: {
     type: String,
-    trim: true,
-    // First-timers have no cell yet; required only for full members.
-    required: function (this: any) { return this.status !== "FirstTimer"; }
+    trim: true
   },
   seniorCell: { 
     type: String, 
@@ -57,7 +57,7 @@ const MemberSchema = new Schema({
   },
   level: {
     type: String,
-    required: function (this: any) { return this.status !== "FirstTimer"; }
+    trim: true
   },
   // First-timer follow-up details (optional; captured at first visit).
   email: { type: String, trim: true, lowercase: true },

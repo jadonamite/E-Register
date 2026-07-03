@@ -66,6 +66,32 @@ export async function POST(req: Request) {
   }
 }
 
+/** PATCH — exec only. Rename a node (name propagates to the member-form tree). */
+export async function PATCH(req: Request) {
+  try {
+    const session = await getSession();
+    if (session?.kind !== "exec") return forbidden();
+
+    await connectDB();
+    const { _id, name } = await req.json();
+    if (!_id || !name?.trim()) {
+      return NextResponse.json({ error: "Id and name are required" }, { status: 400 });
+    }
+
+    const group = await Group.findById(_id);
+    if (!group) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    const dup = await Group.findOne({ name: name.trim(), level: group.level, _id: { $ne: _id } });
+    if (dup) return NextResponse.json({ error: "That name already exists at this level" }, { status: 409 });
+
+    group.name = name.trim();
+    await group.save();
+    return NextResponse.json(group, { status: 200 });
+  } catch {
+    return NextResponse.json({ error: "Failed to rename" }, { status: 500 });
+  }
+}
+
 /** DELETE — exec only. Blocked if the node still has sub-groups. */
 export async function DELETE(req: Request) {
   try {

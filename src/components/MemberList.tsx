@@ -1,10 +1,10 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, PencilSimple } from "@phosphor-icons/react";
+import { Check, PencilSimple, ArrowCircleUp } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
-export const MemberList = ({ members = [], signedInIds = [], onMarkPresent, onEdit, canMark = true }: any) => {
+export const MemberList = ({ members = [], signedInIds = [], onMarkPresent, onEdit, onPromote, canMark = true }: any) => {
   const getRoleStyle = (role: string) => {
     switch (role) {
       case "Pastor": return "bg-amber-100 text-amber-700 border-amber-200";
@@ -54,6 +54,16 @@ export const MemberList = ({ members = [], signedInIds = [], onMarkPresent, onEd
             </div>
 
             <div className="flex items-center gap-3">
+              {canMark && member.status === "FirstTimer" && (
+                <button
+                  onClick={() => onPromote?.(member)}
+                  title="Promote to member"
+                  className="w-10 h-10 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 hover:bg-amber-100 hover:border-amber-300 transition-all"
+                >
+                  <ArrowCircleUp weight="bold" size={18} />
+                </button>
+              )}
+
               {canMark && (
                 <button
                   onClick={() => onEdit(member)}

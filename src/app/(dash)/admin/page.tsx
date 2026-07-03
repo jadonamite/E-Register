@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
@@ -22,6 +22,8 @@ import {
   User,
   CaretDown,
   Check,
+  PencilSimple,
+  X,
 } from "@phosphor-icons/react";
 
 type Group = { _id: string; name: string; level: "TEAM" | "SENIOR_CELL" | "CELL"; parentId: string | null };
@@ -145,6 +147,24 @@ function StructureTab() {
     }
   };
 
+  const rename = async (g: Group, name: string) => {
+    try {
+      const res = await fetch("/api/groups", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ _id: g._id, name }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: "" }));
+        return toast.error(error || "Failed to rename");
+      }
+      toast.success(`Renamed to ${name}`);
+      load();
+    } catch {
+      toast.error("Network error");
+    }
+  };
+
   const remove = async (g: Group) => {
     try {
       const res = await fetch("/api/groups", {
@@ -253,14 +273,14 @@ function StructureTab() {
           <AnimatePresence>
             {teams.map((team) => (
               <motion.div key={team._id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <Row label={team.name} tint="indigo" onDelete={() => remove(team)} />
+                <Row label={team.name} tint="indigo" onRename={(n) => rename(team, n)} onDelete={() => remove(team)} />
                 <div className="ml-5 border-l-2 border-zinc-100 pl-4 mt-2 space-y-2">
                   {seniorCells.filter((sc) => sc.parentId === team._id).map((sc) => (
                     <div key={sc._id}>
-                      <Row label={sc.name} tint="emerald" small onDelete={() => remove(sc)} />
+                      <Row label={sc.name} tint="emerald" small onRename={(n) => rename(sc, n)} onDelete={() => remove(sc)} />
                       <div className="ml-5 border-l-2 border-zinc-100 pl-4 mt-1.5 space-y-1.5">
                         {cells.filter((c) => c.parentId === sc._id).map((c) => (
-                          <Row key={c._id} label={c.name} tint="pink" small onDelete={() => remove(c)} />
+                          <Row key={c._id} label={c.name} tint="pink" small onRename={(n) => rename(c, n)} onDelete={() => remove(c)} />
                         ))}
                       </div>
                     </div>
@@ -279,26 +299,82 @@ function Row({
   label,
   tint,
   small,
+  onRename,
   onDelete,
 }: {
   label: string;
   tint: "indigo" | "emerald" | "pink";
   small?: boolean;
+  onRename: (name: string) => void;
   onDelete: () => void;
 }) {
   const dot = { indigo: "bg-indigo-400", emerald: "bg-emerald-400", pink: "bg-pink-400" }[tint];
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(label);
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => setVal(label), [label]);
+  useEffect(() => {
+    if (editing) ref.current?.focus();
+  }, [editing]);
+
+  const commit = () => {
+    const t = val.trim();
+    setEditing(false);
+    if (t && t !== label) onRename(t);
+    else setVal(label);
+  };
+  const cancel = () => {
+    setVal(label);
+    setEditing(false);
+  };
+
   return (
-    <div className="flex items-center justify-between group">
-      <div className="flex items-center gap-2.5">
-        <span className={`w-2 h-2 rounded-full ${dot}`} />
-        <span className={`font-black tracking-tight text-stone-900 ${small ? "text-sm" : "text-base"}`}>{label}</span>
+    <div className="flex items-center justify-between group min-h-[36px]">
+      <div className="flex items-center gap-2.5 flex-1">
+        <span className={`w-2 h-2 rounded-full ${dot} shrink-0`} />
+        {editing ? (
+          <input
+            ref={ref}
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commit();
+              if (e.key === "Escape") cancel();
+            }}
+            className={`bg-white border border-zinc-300 rounded-lg px-2 py-1 outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-100 text-stone-900 font-bold tracking-tight ${small ? "text-sm" : "text-base"}`}
+          />
+        ) : (
+          <button
+            onClick={() => setEditing(true)}
+            title="Rename"
+            className={`text-left font-black tracking-tight text-stone-900 hover:text-zinc-500 transition-colors ${small ? "text-sm" : "text-base"}`}
+          >
+            {label}
+          </button>
+        )}
       </div>
-      <button
-        onClick={onDelete}
-        className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-300 opacity-0 group-hover:opacity-100 hover:text-red-500 hover:bg-red-50 transition-all"
-      >
-        <Trash size={15} weight="bold" />
-      </button>
+
+      {editing ? (
+        <div className="flex items-center gap-1">
+          <button onMouseDown={(e) => e.preventDefault()} onClick={commit} className="w-8 h-8 rounded-full flex items-center justify-center text-emerald-500 hover:bg-emerald-50 transition-all">
+            <Check size={16} weight="bold" />
+          </button>
+          <button onMouseDown={(e) => e.preventDefault()} onClick={cancel} className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100 transition-all">
+            <X size={15} weight="bold" />
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={() => setEditing(true)} title="Rename" className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-300 hover:text-zinc-900 hover:bg-zinc-100 transition-all">
+            <PencilSimple size={14} weight="bold" />
+          </button>
+          <button onClick={onDelete} title="Delete" className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-all">
+            <Trash size={15} weight="bold" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

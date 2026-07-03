@@ -112,6 +112,12 @@
     font-family: var(--font-unio);
   }
 }
+
+/* Soften the heaviest weight app-wide (900 -> 800): keeps the bold character
+   without the shouty weight. Unlayered so it wins over the utility. */
+.font-black {
+  font-weight: 800;
+}
 @utility modal-glass-high {
   /* High saturation and blur for that premium 'Object' feel */
   background: rgba(255, 255, 255, 0.85);

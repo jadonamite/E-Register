@@ -62,7 +62,10 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
       });
 
       if (res.status === 409) throw new Error("Member already exists!");
-      if (!res.ok) throw new Error("Failed to add");
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: "" }));
+        throw new Error(error || "Failed to add");
+      }
 
       const savedMember = await res.json();
       setMembers(prev => prev.map(m => m._id === tempId ? savedMember : m));
@@ -89,18 +92,21 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
         body: JSON.stringify(data),
       });
 
-      if (!res.ok) throw new Error("Failed to update");
-      
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: "" }));
+        throw new Error(error || "Failed to update");
+      }
+
       const updated = await res.json();
       setMembers(prev => prev.map(m => m._id === data._id ? updated : m));
-      toast.success("Member details updated");
+      toast.success(data.status === "Member" && !originalMember?.cell ? "Converted to member" : "Member details updated");
 
-    } catch (error) {
+    } catch (error: any) {
       // Revert on failure
       if (originalMember) {
         setMembers(prev => prev.map(m => m._id === data._id ? originalMember : m));
       }
-      toast.error("Update failed: Network Error");
+      toast.error(error.message || "Update failed");
       throw error; // surface to the modal so it stays open with the edits intact
     }
   };

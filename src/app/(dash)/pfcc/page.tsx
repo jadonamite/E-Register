@@ -49,6 +49,13 @@ export default function PFCCDashboard() {
     setIsModalOpen(true);
   };
 
+  const handlePromote = (member: any) => {
+    // Open the member form pre-filled with the visitor's details, flipped to
+    // "Member" so saving assigns a cell and completes the conversion.
+    setEditingMember({ ...member, status: "Member" });
+    setIsModalOpen(true);
+  };
+
   // 2. Mobile Access Restricted UI
   if (isMobile) {
     return (
@@ -72,7 +79,7 @@ export default function PFCCDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FDFBFC] p-6 md:p-12 font-sans max-w-[1600px] mx-auto relative z-0">
+    <div className="min-h-screen bg-[#FDFBFC] p-6 md:p-12 font-unio max-w-[1600px] mx-auto relative z-0">
       <header className="flex flex-col lg:flex-row justify-between items-center gap-8 mb-12">
         <Logo />
         
@@ -136,6 +143,7 @@ export default function PFCCDashboard() {
             signedInIds={signedInIds}
             onMarkPresent={markPresent}
             onEdit={handleEditInitiated}
+            onPromote={handlePromote}
             canMark={canMark}
           />
         </div>
