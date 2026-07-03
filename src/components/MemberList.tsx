@@ -25,11 +25,11 @@ export const MemberList = ({ members = [], signedInIds = [], onMarkPresent, onEd
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9 }}
-            className="flex items-center justify-between p-5 bg-white/60 border border-zinc-100 rounded-[2rem] hover:border-zinc-300 hover:bg-white transition-all group shadow-sm"
+            className="flex items-center justify-between gap-3 p-4 sm:p-5 bg-white/60 border border-zinc-100 rounded-[1.75rem] sm:rounded-[2rem] hover:border-zinc-300 hover:bg-white transition-all group shadow-sm"
           >
-            <div className="flex flex-col gap-1.5">
-              <h3 className="font-bold text-stone-900 tracking-tight">{member.name}</h3>
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+              <h3 className="font-bold text-stone-900 tracking-tight break-words">{member.name}</h3>
+              <div className="flex flex-wrap items-center gap-2">
                 {member.status === "FirstTimer" ? (
                   <span className="px-2 py-0.5 bg-amber-100 rounded-md text-[9px] font-black uppercase tracking-widest text-amber-700 border border-amber-200">
                     First Timer
@@ -53,7 +53,7 @@ export const MemberList = ({ members = [], signedInIds = [], onMarkPresent, onEd
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               {canMark && member.status === "FirstTimer" && (
                 <button
                   onClick={() => onPromote?.(member)}
