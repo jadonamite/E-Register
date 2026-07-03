@@ -6,6 +6,7 @@ import { X } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
+import { useConfirm } from "@/components/ui/confirm";
 import { ExistingForm, FirstTimerForm } from "./MemberForms";
 import { SuccessCheck } from "./SuccessCheck";
 
@@ -22,6 +23,7 @@ export const AddMemberModal = ({
   onOpenChange,
   initialData
 }: AddMemberModalProps) => {
+  const confirm = useConfirm();
   const [mode, setMode] = useState("existing");
   const [showSuccess, setShowSuccess] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -35,9 +37,18 @@ export const AddMemberModal = ({
 
   // Explicit close (X). A half-filled form is only discarded on confirmation,
   // so a mis-tap can never wipe data. Outside-click / Esc are blocked below.
-  const requestClose = () => {
+  const requestClose = async () => {
     if (saving) return;
-    if (isDirty && !window.confirm("Discard unsaved changes?")) return;
+    if (isDirty) {
+      const ok = await confirm({
+        title: "Discard changes?",
+        message: "Your unsaved input will be lost.",
+        tone: "danger",
+        confirmText: "Discard",
+        cancelText: "Keep editing",
+      });
+      if (!ok) return;
+    }
     onOpenChange(false);
   };
 

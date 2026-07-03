@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter_Tight, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
+import { ConfirmProvider } from "@/components/ui/confirm";
 
 // The app's display font (--font-unio). Previously referenced in CSS but never
 // actually loaded, so everything fell back to system sans-serif.
@@ -36,7 +37,7 @@ export default function RootLayout({
       <body
         className={`${interTight.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <ConfirmProvider>{children}</ConfirmProvider>
         <Toaster richColors position="top-center" />
       </body>
     </html>

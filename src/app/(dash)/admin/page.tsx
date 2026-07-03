@@ -8,6 +8,7 @@ import { LogoutButton } from "@/components/LogoutButton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useConfirm } from "@/components/ui/confirm";
 import { cn } from "@/lib/utils";
 import {
   TreeStructure,
@@ -110,6 +111,7 @@ function Picker({
 /* ------------------------------------------------------------------ */
 
 function StructureTab() {
+  const confirm = useConfirm();
   const [groups, setGroups] = useState<Group[]>([]);
   const [teamName, setTeamName] = useState("");
   const [scName, setScName] = useState("");
@@ -169,7 +171,12 @@ function StructureTab() {
   const promote = async (g: Group) => {
     const target = g.level === "CELL" ? "Senior Cell" : g.level === "SENIOR_CELL" ? "Team" : null;
     if (!target) return toast.error("Already at the top level");
-    if (!window.confirm(`Promote "${g.name}" to a ${target}?`)) return;
+    const ok = await confirm({
+      title: `Promote ${g.name}?`,
+      message: `This lifts it up to a ${target}.`,
+      confirmText: "Promote",
+    });
+    if (!ok) return;
     try {
       const res = await fetch("/api/groups", {
         method: "PATCH",
@@ -188,6 +195,13 @@ function StructureTab() {
   };
 
   const remove = async (g: Group) => {
+    const ok = await confirm({
+      title: `Delete ${g.name}?`,
+      message: "This removes it from the structure. This cannot be undone.",
+      tone: "danger",
+      confirmText: "Delete",
+    });
+    if (!ok) return;
     try {
       const res = await fetch("/api/groups", {
         method: "DELETE",
@@ -413,6 +427,7 @@ function Row({
 /* ------------------------------------------------------------------ */
 
 function MarkersTab() {
+  const confirm = useConfirm();
   const [markers, setMarkers] = useState<Marker[]>([]);
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
@@ -464,15 +479,31 @@ function MarkersTab() {
     }
   };
 
-  const resetPin = (m: Marker) => {
-    const next = window.prompt(`New 4–6 digit PIN for ${m.name}`);
-    if (next === null) return;
-    if (!/^\d{4,6}$/.test(next)) return toast.error("PIN must be 4–6 digits");
+  const resetPin = async (m: Marker) => {
+    const next = await confirm({
+      title: `Reset PIN`,
+      message: `Set a new sign-in PIN for ${m.name}.`,
+      confirmText: "Reset PIN",
+      input: {
+        label: "New PIN",
+        placeholder: "4–6 digits",
+        type: "password",
+        inputMode: "numeric",
+        validate: (v) => (/^\d{4,6}$/.test(v) ? null : "PIN must be 4–6 digits"),
+      },
+    });
+    if (typeof next !== "string") return;
     patch(m, { pin: next }, `${m.name}'s PIN reset`);
   };
 
   const remove = async (m: Marker) => {
-    if (!window.confirm(`Remove ${m.name}?`)) return;
+    const ok = await confirm({
+      title: `Remove ${m.name}?`,
+      message: "They will no longer be able to sign in and mark attendance.",
+      tone: "danger",
+      confirmText: "Remove",
+    });
+    if (!ok) return;
     try {
       const res = await fetch("/api/markers", {
         method: "DELETE",
