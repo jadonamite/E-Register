@@ -27,7 +27,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Incorrect PIN" }, { status: 401 });
     }
 
-    return NextResponse.json({ ok: true, id: String(caller._id), name: caller.name }, { status: 200 });
+    return NextResponse.json(
+      {
+        ok: true,
+        id: String(caller._id),
+        name: caller.name,
+        seniorCellId: caller.seniorCellId ? String(caller.seniorCellId) : null,
+        seniorCellName: caller.seniorCellName ?? null,
+      },
+      { status: 200 }
+    );
   } catch {
     return NextResponse.json({ error: "Sign-in failed" }, { status: 500 });
   }

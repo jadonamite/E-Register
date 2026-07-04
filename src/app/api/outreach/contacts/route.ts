@@ -27,6 +27,7 @@ type ContactDoc = {
   phone: string;
   groupId: unknown;
   broughtBy: string;
+  location?: string;
   doNotContact: boolean;
   createdAt: Date;
 };
@@ -81,6 +82,7 @@ export async function GET(req: Request) {
         phone: c.phone,
         groupId: String(c.groupId),
         broughtBy: c.broughtBy,
+        location: c.location ?? null,
         createdAt: c.createdAt?.toISOString?.() ?? null,
         status,
         attempts: cl.length,
@@ -134,7 +136,7 @@ export async function POST(req: Request) {
     );
 
     const seen = new Set<string>();
-    const toInsert: { eventId: string; name: string; phone: string; groupId: string; broughtBy: string }[] = [];
+    const toInsert: { eventId: string; name: string; phone: string; groupId: string; broughtBy: string; location?: string }[] = [];
     let skipped = 0;
 
     for (const row of contacts) {
@@ -144,7 +146,11 @@ export async function POST(req: Request) {
         continue;
       }
       seen.add(n.phone);
-      toInsert.push({ eventId, name: n.name, phone: n.phone, groupId, broughtBy: broughtBy.trim() });
+      const location =
+        typeof row?.location === "string" && row.location.trim()
+          ? row.location.trim().slice(0, 80)
+          : undefined;
+      toInsert.push({ eventId, name: n.name, phone: n.phone, groupId, broughtBy: broughtBy.trim(), location });
     }
 
     if (toInsert.length === 0) {

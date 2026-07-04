@@ -7,9 +7,15 @@ import { guardOutreach } from "@/lib/outreach-auth";
 
 export const dynamic = "force-dynamic";
 
-type CallerDoc = { _id: unknown; name: string; active: boolean };
+type CallerDoc = {
+  _id: unknown;
+  name: string;
+  active: boolean;
+  seniorCellId?: unknown;
+  seniorCellName?: string;
+};
 
-/** GET — the sign-in roster: active callers, id + name only (never the hash). */
+/** GET — the sign-in roster: active callers with their senior-cell assignment (never the hash). */
 export async function GET(req: Request) {
   const denied = guardOutreach(req);
   if (denied) return denied;
@@ -17,7 +23,12 @@ export async function GET(req: Request) {
     await connectDB();
     const callers = await Caller.find({ active: true }).sort({ name: 1 }).lean<CallerDoc[]>();
     return NextResponse.json(
-      callers.map((c) => ({ id: String(c._id), name: c.name })),
+      callers.map((c) => ({
+        id: String(c._id),
+        name: c.name,
+        seniorCellId: c.seniorCellId ? String(c.seniorCellId) : null,
+        seniorCellName: c.seniorCellName ?? null,
+      })),
       { status: 200 }
     );
   } catch {
@@ -30,20 +41,41 @@ export async function POST(req: Request) {
   const denied = guardOutreach(req);
   if (denied) return denied;
   try {
-    const { name, pin } = await req.json();
+    const { name, pin, seniorCellId, seniorCellName } = await req.json();
     if (typeof name !== "string" || name.trim().length < 2) {
       return NextResponse.json({ error: "Caller name is required" }, { status: 400 });
     }
     if (typeof pin !== "string" || !/^\d{4}$/.test(pin)) {
       return NextResponse.json({ error: "PIN must be 4 digits" }, { status: 400 });
     }
+    // Senior-cell assignment is optional; when present the id must be a real
+    // Group and its name is carried through (denormalised for the roster).
+    let assign: { seniorCellId?: string; seniorCellName?: string } = {};
+    if (seniorCellId != null && seniorCellId !== "") {
+      if (!isValidObjectId(seniorCellId)) {
+        return NextResponse.json({ error: "Invalid senior cell" }, { status: 400 });
+      }
+      assign = {
+        seniorCellId,
+        seniorCellName:
+          typeof seniorCellName === "string" ? seniorCellName.trim() : undefined,
+      };
+    }
 
     await connectDB();
     const exists = await Caller.findOne({ name: name.trim() });
     if (exists) return NextResponse.json({ error: "That caller already exists" }, { status: 409 });
 
-    const caller = await Caller.create({ name: name.trim(), pinHash: hashPin(pin) });
-    return NextResponse.json({ id: String(caller._id), name: caller.name }, { status: 201 });
+    const caller = await Caller.create({ name: name.trim(), pinHash: hashPin(pin), ...assign });
+    return NextResponse.json(
+      {
+        id: String(caller._id),
+        name: caller.name,
+        seniorCellId: caller.seniorCellId ? String(caller.seniorCellId) : null,
+        seniorCellName: caller.seniorCellName ?? null,
+      },
+      { status: 201 }
+    );
   } catch {
     return NextResponse.json({ error: "Failed to create caller" }, { status: 500 });
   }

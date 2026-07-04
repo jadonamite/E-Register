@@ -13,6 +13,8 @@ const OutreachContactSchema = new Schema({
   // Leaf group (cell) credited with bringing this contact — a Group _id.
   groupId: { type: Schema.Types.ObjectId, ref: "Group", required: true },
   broughtBy: { type: String, required: true, trim: true },
+  // Where the contact is coming from — area/address. Optional.
+  location: { type: String, trim: true },
   // Exit flag: suppress from the active queue (contact asked not to be reached).
   doNotContact: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
