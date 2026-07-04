@@ -205,3 +205,25 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Failed to update contact" }, { status: 500 });
   }
 }
+
+/** DELETE — remove a contact and its call history (admin: fake/invalid entries). */
+export async function DELETE(req: Request) {
+  const denied = guardOutreach(req);
+  if (denied) return denied;
+  try {
+    const { id } = await req.json();
+    if (!isValidObjectId(id)) {
+      return NextResponse.json({ error: "Valid contact id required" }, { status: 400 });
+    }
+
+    await connectDB();
+    const deleted = await OutreachContact.findByIdAndDelete(id).lean<ContactDoc>();
+    if (!deleted) return NextResponse.json({ error: "Contact not found" }, { status: 404 });
+    // Drop the orphaned call logs too.
+    await OutreachLog.deleteMany({ contactId: id });
+
+    return NextResponse.json({ ok: true }, { status: 200 });
+  } catch {
+    return NextResponse.json({ error: "Failed to delete contact" }, { status: 500 });
+  }
+}
