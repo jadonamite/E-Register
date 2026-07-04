@@ -49,6 +49,24 @@ export async function POST(req: Request) {
   }
 }
 
+/** DELETE — admin removes a caller. Past logs keep the caller id as a string. */
+export async function DELETE(req: Request) {
+  const denied = guardOutreach(req);
+  if (denied) return denied;
+  try {
+    const { id } = await req.json();
+    if (!isValidObjectId(id)) {
+      return NextResponse.json({ error: "Valid caller id required" }, { status: 400 });
+    }
+    await connectDB();
+    const removed = await Caller.findByIdAndDelete(id);
+    if (!removed) return NextResponse.json({ error: "Caller not found" }, { status: 404 });
+    return NextResponse.json({ ok: true }, { status: 200 });
+  } catch {
+    return NextResponse.json({ error: "Failed to delete caller" }, { status: 500 });
+  }
+}
+
 /** PATCH — admin toggles active or resets a caller's PIN. */
 export async function PATCH(req: Request) {
   const denied = guardOutreach(req);
