@@ -37,18 +37,32 @@ type LogDoc = {
   note?: string;
 };
 
-/** GET — logs for a contact (`?contactId=`), newest first. */
+/**
+ * GET — logs for a single contact (`?contactId=`) or every log across an event's
+ * contacts (`?eventId=`, for dashboard analytics), newest first.
+ */
 export async function GET(req: Request) {
   const denied = guardOutreach(req);
   if (denied) return denied;
   try {
-    const contactId = new URL(req.url).searchParams.get("contactId");
-    if (!isValidObjectId(contactId)) {
-      return NextResponse.json({ error: "Valid contactId is required" }, { status: 400 });
-    }
+    const url = new URL(req.url);
+    const contactId = url.searchParams.get("contactId");
+    const eventId = url.searchParams.get("eventId");
 
     await connectDB();
-    const logs = await OutreachLog.find({ contactId }).sort({ at: -1 }).lean<LogDoc[]>();
+
+    let filter: Record<string, unknown>;
+    if (isValidObjectId(eventId)) {
+      // All logs for contacts on this event.
+      const contactIds = await OutreachContact.find({ eventId }).distinct("_id");
+      filter = { contactId: { $in: contactIds } };
+    } else if (isValidObjectId(contactId)) {
+      filter = { contactId };
+    } else {
+      return NextResponse.json({ error: "Valid contactId or eventId is required" }, { status: 400 });
+    }
+
+    const logs = await OutreachLog.find(filter).sort({ at: -1 }).lean<LogDoc[]>();
     return NextResponse.json(
       logs.map((l) => ({
         id: String(l._id),
