@@ -99,33 +99,61 @@ export async function DELETE(req: Request) {
   }
 }
 
-/** PATCH — admin toggles active or resets a caller's PIN. */
+/**
+ * PATCH — admin toggles active, resets a caller's PIN, or (re)assigns a senior
+ * cell. Pass `seniorCellId: null` (or "") to clear the assignment → all-access.
+ */
 export async function PATCH(req: Request) {
   const denied = guardOutreach(req);
   if (denied) return denied;
   try {
-    const { id, active, pin } = await req.json();
+    const { id, active, pin, seniorCellId, seniorCellName } = await req.json();
     if (!isValidObjectId(id)) {
       return NextResponse.json({ error: "Valid caller id required" }, { status: 400 });
     }
 
-    const update: { active?: boolean; pinHash?: string } = {};
-    if (typeof active === "boolean") update.active = active;
+    const set: { active?: boolean; pinHash?: string; seniorCellId?: string; seniorCellName?: string } = {};
+    const unset: Record<string, "" > = {};
+
+    if (typeof active === "boolean") set.active = active;
     if (pin !== undefined) {
       if (typeof pin !== "string" || !/^\d{4}$/.test(pin)) {
         return NextResponse.json({ error: "PIN must be 4 digits" }, { status: 400 });
       }
-      update.pinHash = hashPin(pin);
+      set.pinHash = hashPin(pin);
     }
-    if (Object.keys(update).length === 0) {
+    if (seniorCellId !== undefined) {
+      if (seniorCellId === null || seniorCellId === "") {
+        // Clear the assignment → all-access.
+        unset.seniorCellId = "";
+        unset.seniorCellName = "";
+      } else if (!isValidObjectId(seniorCellId)) {
+        return NextResponse.json({ error: "Invalid senior cell" }, { status: 400 });
+      } else {
+        set.seniorCellId = seniorCellId;
+        if (typeof seniorCellName === "string") set.seniorCellName = seniorCellName.trim();
+      }
+    }
+
+    if (Object.keys(set).length === 0 && Object.keys(unset).length === 0) {
       return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
     }
+
+    const update: Record<string, unknown> = {};
+    if (Object.keys(set).length) update.$set = set;
+    if (Object.keys(unset).length) update.$unset = unset;
 
     await connectDB();
     const caller = await Caller.findByIdAndUpdate(id, update, { new: true }).lean<CallerDoc>();
     if (!caller) return NextResponse.json({ error: "Caller not found" }, { status: 404 });
 
-    return NextResponse.json({ id: String(caller._id), name: caller.name, active: caller.active });
+    return NextResponse.json({
+      id: String(caller._id),
+      name: caller.name,
+      active: caller.active,
+      seniorCellId: caller.seniorCellId ? String(caller.seniorCellId) : null,
+      seniorCellName: caller.seniorCellName ?? null,
+    });
   } catch {
     return NextResponse.json({ error: "Failed to update caller" }, { status: 500 });
   }
