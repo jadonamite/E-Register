@@ -33,7 +33,7 @@ export function PromptnessAnalytics() {
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
 
   useEffect(() => {
-    const fetch = async () => {
+    const fetchAnalytics = async () => {
       try {
         const res = await fetch(
           `/api/attendance-analytics?service=${service}&date=${date}&groupBy=cell`
@@ -48,7 +48,7 @@ export function PromptnessAnalytics() {
       }
     };
     setLoading(true);
-    fetch();
+    fetchAnalytics();
   }, [service, date]);
 
   if (loading) {

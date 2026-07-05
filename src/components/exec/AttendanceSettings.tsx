@@ -15,7 +15,7 @@ export function AttendanceSettings() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const fetch = async () => {
+    const fetchSettings = async () => {
       try {
         const res = await fetch("/api/attendance-config");
         if (res.ok) {
@@ -28,7 +28,7 @@ export function AttendanceSettings() {
         setLoading(false);
       }
     };
-    fetch();
+    fetchSettings();
   }, []);
 
   const handleUpdate = async (service: "Sunday" | "Mid-Week") => {
