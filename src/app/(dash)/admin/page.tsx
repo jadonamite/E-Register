@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useConfirm } from "@/components/ui/confirm";
 import { cn } from "@/lib/utils";
+import { AttendanceSettings } from "@/components/exec/AttendanceSettings";
 import {
   TreeStructure,
   IdentificationBadge,
@@ -26,6 +27,7 @@ import {
   PencilSimple,
   ArrowFatUp,
   X,
+  Clock,
 } from "@phosphor-icons/react";
 
 type Group = { _id: string; name: string; level: "TEAM" | "SENIOR_CELL" | "CELL"; parentId: string | null };
@@ -633,6 +635,12 @@ export default function AdminPage() {
           >
             <IdentificationBadge size={16} weight="bold" /> Markers
           </TabsTrigger>
+          <TabsTrigger
+            value="attendance"
+            className="rounded-xl px-6 py-2.5 text-[11px] font-black uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm text-zinc-400 flex items-center gap-2"
+          >
+            <Clock size={16} weight="bold" /> Attendance
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="structure">
@@ -640,6 +648,11 @@ export default function AdminPage() {
         </TabsContent>
         <TabsContent value="markers">
           <MarkersTab />
+        </TabsContent>
+        <TabsContent value="attendance">
+          <div className="max-w-2xl">
+            <AttendanceSettings />
+          </div>
         </TabsContent>
       </Tabs>
     </div>

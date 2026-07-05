@@ -44,7 +44,8 @@ export async function POST(req: Request) {
           attendance: {
             date: targetDate,
             serviceType: serviceType,
-            markedBy: session.name
+            markedBy: session.name,
+            markedAt: new Date()
           }
         }
       }

@@ -68,8 +68,9 @@ const MemberSchema = new Schema({
   isMember: { type: String, trim: true },
   attendance: [{
     date: { type: Date, default: Date.now },
-    serviceType: { type: String, required: true }, 
-    markedBy: { type: String } 
+    serviceType: { type: String, required: true },
+    markedBy: { type: String },
+    markedAt: { type: Date }
   }],
   createdAt: { type: Date, default: Date.now },
 });
