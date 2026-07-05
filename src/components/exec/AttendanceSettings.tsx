@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Clock, Floppy } from "@phosphor-icons/react";
+import { Clock, FloppyDisk } from "@phosphor-icons/react";
 
 interface TimeGates {
   Sunday: { earlyThreshold: string; lateThreshold: string };
@@ -117,7 +117,7 @@ export function AttendanceSettings() {
             disabled={saving}
             className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-black transition-all disabled:opacity-60"
           >
-            <Floppy size={16} weight="bold" />
+            <FloppyDisk size={16} weight="bold" />
             {saving ? "Saving…" : "Save"}
           </button>
         </div>

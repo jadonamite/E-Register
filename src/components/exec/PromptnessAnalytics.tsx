@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { TrendingUp, CalendarBlank } from "@phosphor-icons/react";
+import { TrendUp, CalendarBlank } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 interface Stat {
@@ -79,7 +79,7 @@ export function PromptnessAnalytics() {
     <div className="space-y-6">
       <div>
         <div className="flex items-center gap-2 mb-4">
-          <TrendingUp size={20} className="text-gray-600" />
+          <TrendUp size={20} className="text-gray-600" />
           <h3 className="text-lg font-bold text-gray-900">Cell Promptness Scores</h3>
         </div>
 
