@@ -14,18 +14,25 @@ export default function PFCCDashboard() {
   const [date, setDate] = useState<Date>(new Date());
   const [canMark, setCanMark] = useState(false);
 
+  const [filterType, setFilterType] = useState<"all" | "team" | "seniorCell" | "cell">("all");
+  const [filterValue, setFilterValue] = useState<string>("");
+
   const [editingMember, setEditingMember] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const {
-    filteredMembers, 
-    signedInIds, 
-    searchQuery, 
-    setSearchQuery, 
-    addMember, 
-    updateMember, 
-    markPresent 
+    filteredMembers,
+    signedInIds,
+    searchQuery,
+    setSearchQuery,
+    addMember,
+    updateMember,
+    markPresent,
+    getUniqueLevels,
+    filterByHierarchy
   } = useMembers(service, date);
+
+  const displayMembers = filterByHierarchy(filterType, filterValue);
 
   const handleEditInitiated = (member: any) => {
     setEditingMember(member);
@@ -38,10 +45,14 @@ export default function PFCCDashboard() {
   };
 
   const handlePromote = (member: any) => {
-    // Open the member form pre-filled with the visitor's details, flipped to
-    // "Member" so saving assigns a cell and completes the conversion.
     setEditingMember({ ...member, status: "Member" });
     setIsModalOpen(true);
+  };
+
+  const filterOptions = {
+    team: getUniqueLevels("team"),
+    seniorCell: getUniqueLevels("seniorCell"),
+    cell: getUniqueLevels("cell"),
   };
 
   return (
@@ -92,20 +103,66 @@ export default function PFCCDashboard() {
                 <span className="text-xs font-bold uppercase tracking-[0.2em]">{format(date, "MMMM d, yyyy")}</span>
               </div>
             </div>
-            
-            <div className="relative w-full max-w-2xl group">
-              <MagnifyingGlass className="absolute left-6 top-1/2 -translate-y-1/2 opacity-20" size={24} />
-              <input 
-                placeholder="Search name or cell..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-16 w-full pl-16 bg-white border border-zinc-100 rounded-3xl font-medium text-lg focus:border-stone-300 focus:ring-4 focus:ring-stone-100 outline-none shadow-sm transition-all text-stone-800 placeholder:text-stone-300" 
-              />
+
+            <div className="space-y-3">
+              <div className="relative w-full max-w-2xl group">
+                <MagnifyingGlass className="absolute left-6 top-1/2 -translate-y-1/2 opacity-20" size={24} />
+                <input
+                  placeholder="Search name or cell..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-16 w-full pl-16 bg-white border border-zinc-100 rounded-3xl font-medium text-lg focus:border-stone-300 focus:ring-4 focus:ring-stone-100 outline-none shadow-sm transition-all text-stone-800 placeholder:text-stone-300"
+                />
+              </div>
+
+              {/* Hierarchy Filters */}
+              <div className="flex flex-wrap gap-2">
+                <select
+                  value={filterType}
+                  onChange={(e) => {
+                    setFilterType(e.target.value as any);
+                    setFilterValue("");
+                  }}
+                  className="px-4 py-2 border border-zinc-200 rounded-lg text-xs font-bold bg-white hover:border-zinc-300 transition-colors"
+                >
+                  <option value="all">All Members</option>
+                  <option value="team">Filter by Team</option>
+                  <option value="seniorCell">Filter by Senior Cell</option>
+                  <option value="cell">Filter by Cell</option>
+                </select>
+
+                {filterType !== "all" && (
+                  <select
+                    value={filterValue}
+                    onChange={(e) => setFilterValue(e.target.value)}
+                    className="px-4 py-2 border border-zinc-200 rounded-lg text-xs font-bold bg-white hover:border-zinc-300 transition-colors"
+                  >
+                    <option value="">Select {filterType === "team" ? "Team" : filterType === "seniorCell" ? "Senior Cell" : "Cell"}...</option>
+                    {filterOptions[filterType as keyof typeof filterOptions].map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                {filterValue && (
+                  <button
+                    onClick={() => {
+                      setFilterType("all");
+                      setFilterValue("");
+                    }}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-xs font-bold hover:bg-gray-200 transition-colors"
+                  >
+                    Clear Filter
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-          
+
           <MemberList
-            members={filteredMembers}
+            members={displayMembers}
             signedInIds={signedInIds}
             onMarkPresent={markPresent}
             onEdit={handleEditInitiated}
@@ -134,7 +191,7 @@ export default function PFCCDashboard() {
       </div>
 
       <div className="fixed bottom-6 right-6 sm:bottom-12 sm:right-12 z-50">
-        <AddMemberModal 
+        <AddMemberModal
           isOpen={isModalOpen}
           onOpenChange={setIsModalOpen}
           initialData={editingMember}
@@ -144,9 +201,9 @@ export default function PFCCDashboard() {
             } else {
               await addMember(data);
             }
-          }} 
+          }}
         />
-        
+
         {!isModalOpen && canMark && (
           <button
             onClick={handleAddNew}

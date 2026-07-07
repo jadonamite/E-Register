@@ -5,6 +5,8 @@ import { Logo } from "@/components/Logo";
 import { GrowthChart } from "@/components/exec/GrowthChart";
 import { ConnectivityEffect } from "@/components/exec/ConnectivityEffect";
 import { PromptnessAnalytics } from "@/components/exec/PromptnessAnalytics";
+import { WeeklyAccountability } from "@/components/exec/WeeklyAccountability";
+import { PromptnessHierarchy } from "@/components/exec/PromptnessHierarchy";
 import { motion } from "framer-motion";
 import { Users, Warning, ShieldCheck, Lightning, UserPlus, TrendUp, Target, CaretRight, GearSix } from "@phosphor-icons/react";
 import Link from "next/link";
@@ -276,11 +278,18 @@ export default function ExecutiveDashboard() {
           </div>
 
         </div>
+        {/* Weekly Accountability Section */}
+        <div className="mt-12 lg:mt-16">
+          <div className="bento-card p-8 lg:p-12">
+            <WeeklyAccountability />
+          </div>
+        </div>
+
 
         {/* Attendance Promptness Analytics */}
         <div className="mt-12 lg:mt-16">
           <div className="bento-card p-8">
-            <PromptnessAnalytics />
+            <PromptnessHierarchy />
           </div>
         </div>
       </div>

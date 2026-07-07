@@ -47,6 +47,31 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
     );
   }, [searchQuery, members]);
 
+  // Filter by hierarchy
+  const getUniqueLevels = (level: "team" | "seniorCell" | "cell") => {
+    const values = new Set(
+      members
+        .map(m => {
+          if (level === "team") return m.team || "No Team";
+          if (level === "seniorCell") return m.seniorCell || "Unassigned";
+          if (level === "cell") return m.cell || "Unassigned";
+        })
+        .filter(Boolean)
+    );
+    return Array.from(values).sort();
+  };
+
+  const filterByHierarchy = (filterType: "all" | "team" | "seniorCell" | "cell", filterValue: string) => {
+    if (filterType === "all" || !filterValue) return filteredMembers;
+
+    return filteredMembers.filter(m => {
+      if (filterType === "team") return (m.team || "No Team") === filterValue;
+      if (filterType === "seniorCell") return (m.seniorCell || "Unassigned") === filterValue;
+      if (filterType === "cell") return (m.cell || "Unassigned") === filterValue;
+      return true;
+    });
+  };
+
   // 3. Add Member
   const addMember = async (data: any) => {
     const tempId = Date.now().toString();
@@ -146,15 +171,17 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
     }
   };
 
-  return { 
-    filteredMembers, 
-    signedInIds, 
-    searchQuery, 
-    setSearchQuery, 
-    addMember, 
+  return {
+    filteredMembers,
+    signedInIds,
+    searchQuery,
+    setSearchQuery,
+    addMember,
     updateMember,
-    markPresent: toggleAttendance, 
+    markPresent: toggleAttendance,
     loading,
-    totalCount: members.length 
+    totalCount: members.length,
+    getUniqueLevels,
+    filterByHierarchy
   };
 }
