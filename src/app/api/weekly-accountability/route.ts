@@ -89,7 +89,7 @@ function hierarchyOf(doc: any) {
 /** Unique members (with hierarchy fields) who attended at least once in the range. */
 function uniqueAttendees(startDate: Date, endDate: Date, serviceType: string | null) {
   return Member.aggregate([
-    { $match: { status: "Member" } },
+    { $match: { status: { $ne: "FirstTimer" } } },
     { $unwind: "$attendance" },
     {
       $match: {
@@ -161,7 +161,7 @@ export async function GET(req: Request) {
 
     const [allMembers, thisWeekAttendees, prevWeekAttendees, firstTimersThisWeek, streakHistory] =
       await Promise.all([
-        Member.find({ status: "Member" }).lean(),
+        Member.find({ status: { $ne: "FirstTimer" } }).lean(),
         uniqueAttendees(startDate, endDate, serviceType),
         uniqueAttendees(prevWeekStart, prevWeekEnd, serviceType),
         // First-timers who attended in the range (not by createdAt).
@@ -187,7 +187,7 @@ export async function GET(req: Request) {
         ]),
         // Raw check-in dates over the streak window, for consecutive-absence calc.
         Member.aggregate([
-          { $match: { status: "Member" } },
+          { $match: { status: { $ne: "FirstTimer" } } },
           { $unwind: "$attendance" },
           {
             $match: {

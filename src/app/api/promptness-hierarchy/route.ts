@@ -75,11 +75,11 @@ export async function GET(req: Request) {
     endOfDay.setHours(23, 59, 59, 999);
 
     // Fetch all members (to count absents too)
-    const allMembers = await Member.find({ status: "Member" }).lean();
+    const allMembers = await Member.find({ status: { $ne: "FirstTimer" } }).lean();
 
     // Fetch attendance for this date/service
     const attendedMembers = await Member.aggregate([
-      { $match: { "attendance.serviceType": service, status: "Member" } },
+      { $match: { "attendance.serviceType": service, status: { $ne: "FirstTimer" } } },
       { $unwind: "$attendance" },
       {
         $match: {
