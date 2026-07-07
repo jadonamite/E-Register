@@ -39,11 +39,14 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
     fetchMembers();
   }, [currentService, selectedDate]);
 
-  // 2. Filter Logic
+  // 2. Filter Logic — name, cell, or phone (digits compared without spacing/dashes)
   const filteredMembers = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    const qDigits = q.replace(/\D/g, "");
     return members.filter(m =>
-      (m.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (m.cell || "").toLowerCase().includes(searchQuery.toLowerCase())
+      (m.name || "").toLowerCase().includes(q) ||
+      (m.cell || "").toLowerCase().includes(q) ||
+      (qDigits.length >= 3 && (m.phone || "").replace(/\D/g, "").includes(qDigits))
     );
   }, [searchQuery, members]);
 
@@ -136,7 +139,31 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
     }
   };
 
-  // 5. Toggle Attendance
+  // 5. Delete Member
+  const deleteMember = async (id: string) => {
+    const original = members;
+    setMembers(prev => prev.filter(m => m._id !== id));
+
+    try {
+      const res = await fetch("/api/members", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ _id: id }),
+      });
+
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: "" }));
+        throw new Error(error || "Failed to delete");
+      }
+      toast.success("Member removed from the database");
+    } catch (error: any) {
+      setMembers(original);
+      toast.error(error.message || "Delete failed");
+      throw error;
+    }
+  };
+
+  // 6. Toggle Attendance
   const toggleAttendance = async (id: string) => {
     const isPresent = signedInIds.includes(id);
 
@@ -178,6 +205,7 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
     setSearchQuery,
     addMember,
     updateMember,
+    deleteMember,
     markPresent: toggleAttendance,
     loading,
     totalCount: members.length,

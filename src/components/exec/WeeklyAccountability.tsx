@@ -15,6 +15,7 @@ import {
   Pulse,
   Fire,
   CalendarBlank,
+  UsersThree,
 } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -87,6 +88,13 @@ const SERVICES = [
 ] as const;
 type ServiceValue = (typeof SERVICES)[number]["value"];
 
+// Leaderboard slides.
+type SlideMode = "strength" | "attendance";
+const SLIDES: { mode: SlideMode; title: string; hint: string }[] = [
+  { mode: "strength", title: "Membership Strength", hint: "% of registered members present" },
+  { mode: "attendance", title: "Total Attendance", hint: "raw head count per team" },
+];
+
 /** Sunday–Saturday of the week `offset` weeks away — the week opens with the Sunday service. */
 function weekRange(offset: number): { start: Date; end: Date } {
   const now = new Date();
@@ -158,6 +166,8 @@ export function WeeklyAccountability() {
   const [service, setService] = useState<ServiceValue>("Sunday");
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
   const [expandedSeniorCell, setExpandedSeniorCell] = useState<string | null>(null);
+  // Leaderboard slides: 0 = membership strength (%), 1 = total attendance (head count).
+  const [slide, setSlide] = useState(0);
 
   const range = useMemo(() => weekRange(weekOffset), [weekOffset]);
   const serviceLabel = SERVICES.find((s) => s.value === service)!.label;
@@ -212,6 +222,185 @@ export function WeeklyAccountability() {
       ))}
     </div>
   );
+
+  const renderTeamList = (mode: SlideMode) => {
+    if (!data) return null;
+    const teams =
+      mode === "strength" ? data.teams : [...data.teams].sort((a, b) => b.attended - a.attended);
+    const maxAttended = Math.max(1, ...teams.map((t) => t.attended));
+
+    const metricBadge = (attended: number, percentage: number, size: "sm" | "md" = "md") =>
+      mode === "strength" ? (
+        <div
+          className={`rounded-full font-black shrink-0 ${performanceText(percentage)} ${
+            size === "md" ? "px-3 py-1 text-sm" : "px-2.5 py-0.5 text-xs"
+          }`}
+        >
+          {percentage}%
+        </div>
+      ) : (
+        <div
+          className={`rounded-full font-black shrink-0 bg-gray-900 text-white ${
+            size === "md" ? "px-3 py-1 text-sm" : "px-2.5 py-0.5 text-xs"
+          }`}
+        >
+          {attended}
+        </div>
+      );
+
+    return (
+      <div className="space-y-3">
+        {teams.map((team, rank) => {
+          const sortedSCs =
+            mode === "strength"
+              ? team.seniorCells
+              : [...team.seniorCells].sort((a, b) => b.attended - a.attended);
+          return (
+            <div key={team.name} className="border border-zinc-100 rounded-3xl overflow-hidden bg-white">
+              <button
+                onClick={() => setExpandedTeam(expandedTeam === team.name ? null : team.name)}
+                className="w-full px-5 sm:px-6 py-4 hover:bg-zinc-50/80 transition-colors text-left"
+              >
+                <div className="flex items-center gap-4">
+                  <div
+                    className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
+                      rank === 0 ? "bg-gray-900 text-white" : "bg-zinc-100 text-zinc-500"
+                    }`}
+                  >
+                    {rank + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-black text-gray-900 truncate">{team.name}</h4>
+                      {mode === "strength" && <MovementChip movement={team.movement} />}
+                    </div>
+                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">
+                      {mode === "strength"
+                        ? `${team.attended} of ${team.registered} attended`
+                        : `${team.percentage}% of ${team.registered} members`}
+                    </p>
+                  </div>
+                  {metricBadge(team.attended, team.percentage)}
+                  <CaretDown
+                    size={18}
+                    className={`text-gray-300 transition-transform shrink-0 ${
+                      expandedTeam === team.name ? "rotate-180" : ""
+                    }`}
+                  />
+                </div>
+                <div className="mt-3 ml-[52px] h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{
+                      width:
+                        mode === "strength"
+                          ? `${team.percentage}%`
+                          : `${(team.attended / maxAttended) * 100}%`,
+                    }}
+                    transition={{ duration: 0.8, delay: rank * 0.05 }}
+                    className={`h-full rounded-full ${
+                      mode === "strength" ? performanceBar(team.percentage) : "bg-gray-900"
+                    }`}
+                  />
+                </div>
+              </button>
+
+              <AnimatePresence>
+                {expandedTeam === team.name && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="bg-zinc-50/60 border-t border-zinc-100 divide-y divide-zinc-100"
+                  >
+                    {sortedSCs.map((seniorCell) => {
+                      const scKey = `${team.name}::${seniorCell.name}`;
+                      const sortedCells =
+                        mode === "strength"
+                          ? seniorCell.cells
+                          : [...seniorCell.cells].sort((a, b) => b.attended - a.attended);
+                      return (
+                        <div key={scKey}>
+                          <button
+                            onClick={() =>
+                              setExpandedSeniorCell(expandedSeniorCell === scKey ? null : scKey)
+                            }
+                            className="w-full pl-10 pr-6 py-3 flex items-center justify-between hover:bg-zinc-100/60 transition-colors text-left"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <h5 className="text-xs font-black text-gray-700 truncate">
+                                {seniorCell.name}
+                              </h5>
+                              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                                {seniorCell.attended} of {seniorCell.registered}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                              {metricBadge(seniorCell.attended, seniorCell.percentage, "sm")}
+                              <CaretDown
+                                size={14}
+                                className={`text-gray-300 transition-transform ${
+                                  expandedSeniorCell === scKey ? "rotate-180" : ""
+                                }`}
+                              />
+                            </div>
+                          </button>
+
+                          <AnimatePresence>
+                            {expandedSeniorCell === scKey && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="bg-white divide-y divide-zinc-50"
+                              >
+                                {sortedCells.map((cell) => (
+                                  <div key={cell.name} className="pl-14 pr-6 py-3">
+                                    <div className="flex items-center justify-between">
+                                      <div className="min-w-0">
+                                        <h6 className="text-xs font-black text-gray-900 truncate">
+                                          {cell.name}
+                                        </h6>
+                                        <p className="text-[9px] font-bold text-gray-400">
+                                          {cell.attended} of {cell.registered} attended
+                                          {cell.firstTimers > 0 &&
+                                            ` · ${cell.firstTimers} first-timer${cell.firstTimers > 1 ? "s" : ""}`}
+                                        </p>
+                                      </div>
+                                      {metricBadge(cell.attended, cell.percentage, "sm")}
+                                    </div>
+                                    {cell.noShows.length > 0 && (
+                                      <div className="mt-2 flex flex-wrap gap-1.5">
+                                        {cell.noShows.map((member) => (
+                                          <span
+                                            key={member._id}
+                                            className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 text-rose-700 rounded-full text-[9px] font-bold"
+                                          >
+                                            {member.name}
+                                            <span className="opacity-50 font-black">
+                                              {member.weeksAbsent >= 8 ? "8+w" : `${member.weeksAbsent}w`}
+                                            </span>
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -366,179 +555,58 @@ export function WeeklyAccountability() {
           ) : (
             /* LEADERBOARD + FOLLOW-UP RAIL */
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-              {/* Leaderboard */}
+              {/* Leaderboard carousel */}
               <div className="lg:col-span-3 bento-card p-6 sm:p-8 hover:transform-none">
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center text-amber-500">
-                      <Trophy size={18} weight="duotone" />
+                      {slide === 0 ? (
+                        <Trophy size={18} weight="duotone" />
+                      ) : (
+                        <UsersThree size={18} weight="duotone" />
+                      )}
                     </div>
                     <div>
                       <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">
-                        Team Leaderboard
+                        {SLIDES[slide].title}
                       </h3>
                       <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
-                        {serviceLabel} service · tap a team to drill down
+                        {serviceLabel} service · {SLIDES[slide].hint}
                       </p>
                     </div>
                   </div>
                   {serviceToggle}
                 </div>
 
-                <div className="space-y-3">
-                  {data.teams.map((team, rank) => (
-                    <div
-                      key={team.name}
-                      className="border border-zinc-100 rounded-3xl overflow-hidden bg-white"
-                    >
-                      <button
-                        onClick={() =>
-                          setExpandedTeam(expandedTeam === team.name ? null : team.name)
-                        }
-                        className="w-full px-5 sm:px-6 py-4 hover:bg-zinc-50/80 transition-colors text-left"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div
-                            className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
-                              rank === 0
-                                ? "bg-gray-900 text-white"
-                                : "bg-zinc-100 text-zinc-500"
-                            }`}
-                          >
-                            {rank + 1}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h4 className="text-sm font-black text-gray-900 truncate">
-                                {team.name}
-                              </h4>
-                              <MovementChip movement={team.movement} />
-                            </div>
-                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">
-                              {team.attended} of {team.registered} attended
-                            </p>
-                          </div>
-                          <div
-                            className={`px-3 py-1 rounded-full text-sm font-black shrink-0 ${performanceText(team.percentage)}`}
-                          >
-                            {team.percentage}%
-                          </div>
-                          <CaretDown
-                            size={18}
-                            className={`text-gray-300 transition-transform shrink-0 ${
-                              expandedTeam === team.name ? "rotate-180" : ""
-                            }`}
-                          />
-                        </div>
-                        <div className="mt-3 ml-[52px] h-1.5 bg-zinc-100 rounded-full overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${team.percentage}%` }}
-                            transition={{ duration: 0.8, delay: rank * 0.05 }}
-                            className={`h-full rounded-full ${performanceBar(team.percentage)}`}
-                          />
-                        </div>
-                      </button>
+                <div className="overflow-hidden">
+                  <motion.div
+                    className="flex cursor-grab active:cursor-grabbing"
+                    animate={{ x: `-${slide * 100}%` }}
+                    transition={{ type: "spring", stiffness: 320, damping: 34 }}
+                    drag="x"
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={0.12}
+                    onDragEnd={(_, info) => {
+                      if (info.offset.x < -60) setSlide(1);
+                      else if (info.offset.x > 60) setSlide(0);
+                    }}
+                  >
+                    <div className="w-full shrink-0 pr-1">{renderTeamList("strength")}</div>
+                    <div className="w-full shrink-0 pl-1">{renderTeamList("attendance")}</div>
+                  </motion.div>
+                </div>
 
-                      <AnimatePresence>
-                        {expandedTeam === team.name && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: "auto" }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="bg-zinc-50/60 border-t border-zinc-100 divide-y divide-zinc-100"
-                          >
-                            {team.seniorCells.map((seniorCell) => {
-                              const scKey = `${team.name}::${seniorCell.name}`;
-                              return (
-                                <div key={scKey}>
-                                  <button
-                                    onClick={() =>
-                                      setExpandedSeniorCell(
-                                        expandedSeniorCell === scKey ? null : scKey
-                                      )
-                                    }
-                                    className="w-full pl-10 pr-6 py-3 flex items-center justify-between hover:bg-zinc-100/60 transition-colors text-left"
-                                  >
-                                    <div className="flex-1 min-w-0">
-                                      <h5 className="text-xs font-black text-gray-700 truncate">
-                                        {seniorCell.name}
-                                      </h5>
-                                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
-                                        {seniorCell.attended} of {seniorCell.registered}
-                                      </p>
-                                    </div>
-                                    <div className="flex items-center gap-3 shrink-0">
-                                      <div
-                                        className={`px-2.5 py-0.5 rounded-full text-xs font-black ${performanceText(seniorCell.percentage)}`}
-                                      >
-                                        {seniorCell.percentage}%
-                                      </div>
-                                      <CaretDown
-                                        size={14}
-                                        className={`text-gray-300 transition-transform ${
-                                          expandedSeniorCell === scKey ? "rotate-180" : ""
-                                        }`}
-                                      />
-                                    </div>
-                                  </button>
-
-                                  <AnimatePresence>
-                                    {expandedSeniorCell === scKey && (
-                                      <motion.div
-                                        initial={{ opacity: 0, height: 0 }}
-                                        animate={{ opacity: 1, height: "auto" }}
-                                        exit={{ opacity: 0, height: 0 }}
-                                        className="bg-white divide-y divide-zinc-50"
-                                      >
-                                        {seniorCell.cells.map((cell) => (
-                                          <div key={cell.name} className="pl-14 pr-6 py-3">
-                                            <div className="flex items-center justify-between">
-                                              <div className="min-w-0">
-                                                <h6 className="text-xs font-black text-gray-900 truncate">
-                                                  {cell.name}
-                                                </h6>
-                                                <p className="text-[9px] font-bold text-gray-400">
-                                                  {cell.attended} of {cell.registered} attended
-                                                  {cell.firstTimers > 0 &&
-                                                    ` · ${cell.firstTimers} first-timer${cell.firstTimers > 1 ? "s" : ""}`}
-                                                </p>
-                                              </div>
-                                              <div
-                                                className={`px-2.5 py-0.5 rounded-full text-xs font-black shrink-0 ${performanceText(cell.percentage)}`}
-                                              >
-                                                {cell.percentage}%
-                                              </div>
-                                            </div>
-                                            {cell.noShows.length > 0 && (
-                                              <div className="mt-2 flex flex-wrap gap-1.5">
-                                                {cell.noShows.map((member) => (
-                                                  <span
-                                                    key={member._id}
-                                                    className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 text-rose-700 rounded-full text-[9px] font-bold"
-                                                  >
-                                                    {member.name}
-                                                    <span className="opacity-50 font-black">
-                                                      {member.weeksAbsent >= 8
-                                                        ? "8+w"
-                                                        : `${member.weeksAbsent}w`}
-                                                    </span>
-                                                  </span>
-                                                ))}
-                                              </div>
-                                            )}
-                                          </div>
-                                        ))}
-                                      </motion.div>
-                                    )}
-                                  </AnimatePresence>
-                                </div>
-                              );
-                            })}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
+                {/* Slide indicators */}
+                <div className="flex items-center justify-center gap-2 mt-6">
+                  {SLIDES.map((s, i) => (
+                    <button
+                      key={s.mode}
+                      onClick={() => setSlide(i)}
+                      aria-label={s.title}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${
+                        slide === i ? "w-8 bg-gray-900" : "w-4 bg-zinc-200 hover:bg-zinc-300"
+                      }`}
+                    />
                   ))}
                 </div>
               </div>

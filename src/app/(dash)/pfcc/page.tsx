@@ -27,6 +27,7 @@ export default function PFCCDashboard() {
     setSearchQuery,
     addMember,
     updateMember,
+    deleteMember,
     markPresent,
     getUniqueLevels,
     filterByHierarchy
@@ -108,7 +109,7 @@ export default function PFCCDashboard() {
               <div className="relative w-full max-w-2xl group">
                 <MagnifyingGlass className="absolute left-6 top-1/2 -translate-y-1/2 opacity-20" size={24} />
                 <input
-                  placeholder="Search name or cell..."
+                  placeholder="Search name, phone or cell..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="h-16 w-full pl-16 bg-white border border-zinc-100 rounded-3xl font-medium text-lg focus:border-stone-300 focus:ring-4 focus:ring-stone-100 outline-none shadow-sm transition-all text-stone-800 placeholder:text-stone-300"
@@ -207,6 +208,7 @@ export default function PFCCDashboard() {
               await addMember(data);
             }
           }}
+          onDelete={deleteMember}
         />
 
         {!isModalOpen && canMark && (

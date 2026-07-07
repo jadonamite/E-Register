@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { X } from "@phosphor-icons/react";
+import { X, Trash } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
@@ -12,6 +12,7 @@ import { SuccessCheck } from "./SuccessCheck";
 
 interface AddMemberModalProps {
   onAdd: (data: any) => Promise<void> | void;
+  onDelete?: (id: string) => Promise<void> | void;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   initialData?: any;
@@ -19,6 +20,7 @@ interface AddMemberModalProps {
 
 export const AddMemberModal = ({
   onAdd,
+  onDelete,
   isOpen,
   onOpenChange,
   initialData
@@ -73,6 +75,35 @@ export const AddMemberModal = ({
 
   // A first-timer just promoted arrives with status "Member" but no cell yet.
   const isConverting = !!initialData && initialData.status === "Member" && !initialData.cell;
+
+  // Permanent removal — double-guarded: typed confirmation of the member's name.
+  const requestDelete = async () => {
+    if (saving || !onDelete || !initialData?._id) return;
+    const typed = await confirm({
+      title: "Delete member?",
+      message: `${initialData.name} and their entire attendance history will be permanently removed. Type the name to confirm.`,
+      tone: "danger",
+      confirmText: "Delete forever",
+      cancelText: "Keep member",
+      input: {
+        placeholder: initialData.name,
+        validate: (v) =>
+          v.trim().toLowerCase() === String(initialData.name).trim().toLowerCase()
+            ? null
+            : "Name doesn't match",
+      },
+    });
+    if (typed === null || typed === false) return;
+    setSaving(true);
+    try {
+      await onDelete(initialData._id);
+      onOpenChange(false);
+    } catch {
+      // Hook already toasted the failure; keep the modal open.
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <>
@@ -134,6 +165,18 @@ export const AddMemberModal = ({
                 </motion.div>
               </AnimatePresence>
             </Tabs>
+
+            {onDelete && initialData?._id && (
+              <div className="mt-8 pt-6 border-t border-black/5 flex justify-center">
+                <button
+                  onClick={requestDelete}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest text-red-500 hover:text-white hover:bg-red-500 border border-red-200 hover:border-red-500 transition-all disabled:opacity-40"
+                >
+                  <Trash size={14} weight="bold" /> Delete from database
+                </button>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

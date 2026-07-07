@@ -104,3 +104,22 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: "Failed to update member" }, { status: 500 });
   }
 }
+
+// Permanently remove a member and their attendance history.
+export async function DELETE(req: Request) {
+  try {
+    if (!(await getSession())) return unauthorized();
+    await connectDB();
+    const { _id } = await req.json();
+
+    if (!_id) return NextResponse.json({ error: "Member ID required" }, { status: 400 });
+
+    const deleted = await Member.findByIdAndDelete(_id);
+    if (!deleted) return NextResponse.json({ error: "Member not found" }, { status: 404 });
+
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error: any) {
+    console.error("❌ DELETE ERROR:", error);
+    return NextResponse.json({ error: "Failed to delete member" }, { status: 500 });
+  }
+}
