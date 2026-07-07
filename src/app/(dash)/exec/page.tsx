@@ -41,7 +41,7 @@ export default function ExecutiveDashboard() {
     : 0;
 
   return (
-    <div className="min-h-screen p-4 md:p-8 font-unio max-w-[1600px] mx-auto relative overflow-hidden">
+    <div className="min-h-screen p-4 md:p-8 font-unio max-w-[1360px] mx-auto relative overflow-hidden">
 
       <div className="atmosphere">
         <div className="blob w-[480px] h-[480px] bg-pink-200 -top-40 -left-40" />
@@ -74,24 +74,24 @@ export default function ExecutiveDashboard() {
         {/* SECONDARY: GROWTH + DATABASE */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mt-6">
 
-          <div className="lg:col-span-3 glow-tile overflow-hidden relative min-h-[240px]">
+          <div className="lg:col-span-3 glow-tile overflow-hidden relative p-6 sm:p-8 flex flex-col gap-6">
             <div className="absolute inset-0 z-0 opacity-20 bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]" />
-            <div className="absolute top-6 left-8 z-20 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center border border-white/5">
+            <div className="relative z-10 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
                 <TrendUp size={16} className="text-emerald-400" />
               </div>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Attendance Trend</p>
-                <p className="text-[9px] font-bold text-white/20 uppercase tracking-wider">Avg {avgAtt} per service</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Attendance Trend</p>
+                <p className="text-[9px] font-bold text-white/25 uppercase tracking-wider">Avg {avgAtt} per service</p>
               </div>
             </div>
-            <div className="relative z-10 h-full w-full p-4 flex items-end">
+            <div className="relative z-10 flex-1">
               <GrowthChart trend={data?.trend} />
             </div>
           </div>
 
           <div className="bento-card p-8 relative overflow-hidden flex flex-col justify-between group bg-[#F0FDFA] border-emerald-100/70">
-            <div className="absolute -right-8 -top-8 text-emerald-900/5 transition-transform group-hover:scale-110 duration-700">
+            <div className="absolute -right-10 -bottom-10 text-emerald-900/5 transition-transform group-hover:scale-110 duration-700 pointer-events-none">
               <Users size={160} weight="fill" />
             </div>
             <div className="relative z-10 flex justify-between items-start">
@@ -104,12 +104,26 @@ export default function ExecutiveDashboard() {
             </div>
             <div className="relative z-10 mt-4">
               <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-900/40 mb-1">Total Database</h3>
-              <span className="text-6xl font-black tracking-tighter text-emerald-950 block">
+              <span className="text-7xl font-black tracking-tighter text-emerald-950 block">
                 <CountUp value={data?.totalMembers || 0} />
               </span>
-              <p className="text-[9px] font-bold text-emerald-900/40 uppercase tracking-wider mt-2">
-                {data?.firstTimers || 0} new profiles
-              </p>
+            </div>
+            <div className="relative z-10 mt-6">
+              <div className="flex h-2 rounded-full overflow-hidden bg-white/60">
+                <div
+                  className="bg-emerald-400"
+                  style={{ width: `${data?.totalMembers ? (data.totalMembers / (data.totalMembers + (data?.firstTimers || 0))) * 100 : 0}%` }}
+                />
+                <div className="bg-amber-300 flex-1" />
+              </div>
+              <div className="flex justify-between mt-2">
+                <span className="text-[9px] font-black uppercase tracking-wider text-emerald-900/50">
+                  {data?.totalMembers || 0} members
+                </span>
+                <span className="text-[9px] font-black uppercase tracking-wider text-amber-600/70">
+                  {data?.firstTimers || 0} first-timers
+                </span>
+              </div>
             </div>
           </div>
         </div>

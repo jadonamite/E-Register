@@ -39,7 +39,12 @@ export function PromptnessHierarchy() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [service, setService] = useState("Sunday");
-  const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  // Default to the most recent Sunday — "today" is usually a weekday with no service.
+  const [date, setDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - d.getDay());
+    return format(d, "yyyy-MM-dd");
+  });
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
   const [expandedSeniorCell, setExpandedSeniorCell] = useState<string | null>(null);
 

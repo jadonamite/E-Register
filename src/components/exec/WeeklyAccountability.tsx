@@ -508,7 +508,10 @@ export function WeeklyAccountability() {
 
             {/* First timers */}
             <div className="bento-card p-6 flex flex-col justify-between relative overflow-hidden group bg-[var(--color-pearl-gold)] border-amber-100/70">
-              <div className="flex items-start justify-between">
+              <div className="absolute -right-8 -bottom-8 text-amber-900/5 transition-transform group-hover:scale-110 duration-700 pointer-events-none">
+                <UserPlus size={150} weight="fill" />
+              </div>
+              <div className="relative z-10 flex items-start justify-between">
                 <div className="w-10 h-10 rounded-full bg-white/70 backdrop-blur flex items-center justify-center text-amber-500 shadow-sm">
                   <UserPlus size={20} weight="bold" />
                 </div>
@@ -517,19 +520,25 @@ export function WeeklyAccountability() {
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
                 </span>
               </div>
-              <div className="mt-4">
-                <p className="text-5xl font-black tracking-tighter text-amber-950">
+              <div className="relative z-10 mt-4">
+                <p className="text-6xl font-black tracking-tighter text-amber-950">
                   <CountUp value={data.summary.totalFirstTimers} />
                 </p>
                 <p className="text-[10px] font-black uppercase tracking-widest text-amber-900/40 mt-2">
                   First Timers
                 </p>
+                <p className="text-[9px] font-bold text-amber-900/30 uppercase tracking-wider mt-1">
+                  New faces this week
+                </p>
               </div>
             </div>
 
             {/* No-shows */}
-            <div className="bento-card p-6 flex flex-col justify-between relative overflow-hidden bg-[var(--color-pearl-pink)] border-rose-100/70">
-              <div className="flex items-start justify-between">
+            <div className="bento-card p-6 flex flex-col justify-between relative overflow-hidden group bg-[var(--color-pearl-pink)] border-rose-100/70">
+              <div className="absolute -right-8 -bottom-8 text-rose-900/5 transition-transform group-hover:scale-110 duration-700 pointer-events-none">
+                <Warning size={150} weight="fill" />
+              </div>
+              <div className="relative z-10 flex items-start justify-between">
                 <div className="w-10 h-10 rounded-full bg-white/70 backdrop-blur flex items-center justify-center text-rose-500 shadow-sm">
                   <Warning size={20} weight="bold" />
                 </div>
@@ -539,12 +548,15 @@ export function WeeklyAccountability() {
                   </span>
                 )}
               </div>
-              <div className="mt-4">
-                <p className="text-5xl font-black tracking-tighter text-rose-950">
+              <div className="relative z-10 mt-4">
+                <p className="text-6xl font-black tracking-tighter text-rose-950">
                   {noDataYet ? "—" : <CountUp value={data.noShows.length} />}
                 </p>
                 <p className="text-[10px] font-black uppercase tracking-widest text-rose-900/40 mt-2">
                   No-Shows
+                </p>
+                <p className="text-[9px] font-bold text-rose-900/30 uppercase tracking-wider mt-1">
+                  Need follow-up
                 </p>
               </div>
             </div>

@@ -1,62 +1,41 @@
 "use client";
 import { motion } from "framer-motion";
 
+/** Bar chart that fills its parent card — the parent owns the surface and header. */
 export const GrowthChart = ({ trend }: { trend: any[] }) => {
-  return (
-    <motion.div 
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="lg:col-span-8 p-10 bg-stone-900 text-white min-h-[500px] rounded-[2.5rem] relative overflow-hidden flex flex-col"
-    >
-      <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+  if (!trend || trend.length === 0) {
+    return (
+      <div className="w-full h-full min-h-[160px] flex items-center justify-center text-white/20 font-black tracking-widest text-[10px]">
+        NO ATTENDANCE DATA YET
+      </div>
+    );
+  }
 
-      <div className="flex justify-between items-center mb-10 relative z-10">
-        <div>
-          <h2 className="text-3xl font-black tracking-tighter">Attendance Growth</h2>
-          <p className="text-xs font-bold opacity-40 uppercase tracking-widest mt-1">Real-time Trend Analysis</p>
-        </div>
-        <button className="px-5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-[10px] font-black transition-all border border-white/5">
-          EXPORT DATA
-        </button>
-      </div>
-      
-      <div className="w-full flex-1 flex items-end justify-between gap-4 border-b border-white/10 pb-4">
-        {(!trend || trend.length === 0) ? (
-            <div className="w-full h-full flex items-center justify-center text-white/20 font-black tracking-widest text-[10px]">
-              NO ATTENDANCE DATA YET
+  const maxVal = Math.max(...trend.map((h: any) => h.count));
+
+  return (
+    <div className="w-full h-full flex items-end justify-between gap-3 sm:gap-4">
+      {trend.map((day: any, i: number) => {
+        const heightPercentage = (day.count / maxVal) * 100;
+        const label = new Date(day.date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+        return (
+          <div key={i} className="flex-1 flex flex-col items-center justify-end gap-2 group cursor-pointer">
+            <p className="text-center text-xs font-black text-emerald-300 opacity-0 group-hover:opacity-100 transition-opacity">
+              {day.count}
+            </p>
+            <div className="w-full max-w-[72px] h-32 sm:h-36 relative overflow-hidden rounded-lg bg-white/5 group-hover:bg-white/10 transition-all">
+              <motion.div
+                initial={{ height: 0 }}
+                animate={{ height: `${heightPercentage}%` }}
+                transition={{ duration: 1, delay: 0.15 + i * 0.08 }}
+                className="absolute bottom-0 w-full rounded-t-lg bg-gradient-to-t from-emerald-500/70 to-emerald-400"
+              />
             </div>
-        ) : (
-          trend.map((day: any, i: number) => {
-            const maxVal = Math.max(...trend.map((h: any) => h.count));
-            const heightPercentage = (day.count / maxVal) * 100;
-            
-            // Format date: "2026-02-07" -> "Feb 7"
-            const dateObj = new Date(day.date);
-            const label = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            
-            return (
-              <div key={i} className="flex-1 flex flex-col justify-end gap-2 group cursor-pointer">
-                {/* The Bar */}
-                <div className="w-full bg-white/5 rounded-t-xl relative overflow-hidden group-hover:bg-white/10 transition-all h-48">
-                  <motion.div 
-                    initial={{ height: 0 }}
-                    animate={{ height: `${heightPercentage}%` }}
-                    transition={{ duration: 1, delay: 0.2 + (i * 0.1) }}
-                    className="absolute bottom-0 w-full bg-emerald-500/80 rounded-t-xl"
-                  />
-                </div>
-                {/* The Label */}
-                <div className="text-center">
-                  <p className="text-[10px] font-bold opacity-40">{label}</p>
-                  <p className="text-[10px] font-bold text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {day.count}
-                  </p>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </motion.div>
+            <p className="text-center text-[10px] font-bold text-white/40">{label}</p>
+          </div>
+        );
+      })}
+    </div>
   );
 };
