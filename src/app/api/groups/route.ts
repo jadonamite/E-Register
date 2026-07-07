@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import Group from "@/models/Group";
+import Member from "@/models/Member";
 import { getSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -126,8 +127,16 @@ export async function PATCH(req: Request) {
     const dup = await Group.findOne({ name: name.trim(), level: group.level, _id: { $ne: _id } });
     if (dup) return NextResponse.json({ error: "That name already exists at this level" }, { status: 409 });
 
+    const oldName = group.name;
     group.name = name.trim();
     await group.save();
+
+    // Members store hierarchy names as strings — cascade so they don't drift.
+    const memberField = { TEAM: "team", SENIOR_CELL: "seniorCell", CELL: "cell" }[
+      group.level as "TEAM" | "SENIOR_CELL" | "CELL"
+    ];
+    await Member.updateMany({ [memberField]: oldName }, { $set: { [memberField]: group.name } });
+
     return NextResponse.json(group, { status: 200 });
   } catch {
     return NextResponse.json({ error: "Failed to update" }, { status: 500 });

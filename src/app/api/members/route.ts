@@ -2,11 +2,31 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import Member from "@/models/Member";
 import { getSession } from "@/lib/auth";
+import { resolveCellChain } from "@/lib/structure";
 
 export const dynamic = "force-dynamic";
 
 const unauthorized = () =>
   NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+/**
+ * A member's hierarchy must come from the admin structure. Resolves the cell
+ * against the Group tree and overwrites team/seniorCell/cell with the
+ * canonical spelling, so free-text drift can't re-enter the database.
+ * Returns an error response when the cell isn't in the structure.
+ */
+async function canonicalizeHierarchy(body: any): Promise<NextResponse | null> {
+  if (!body.cell) return null;
+  const chain = await resolveCellChain(body.cell);
+  if (!chain) {
+    return NextResponse.json(
+      { error: `Cell "${body.cell}" is not in the church structure — add it in Admin first` },
+      { status: 400 }
+    );
+  }
+  Object.assign(body, chain);
+  return null;
+}
 
 export async function GET() {
   try {
@@ -31,6 +51,9 @@ export async function POST(req: Request) {
     if ((body.status ?? "Member") === "Member" && !body.cell) {
       return NextResponse.json({ error: "Assign a cell before saving a member" }, { status: 400 });
     }
+
+    const invalidCell = await canonicalizeHierarchy(body);
+    if (invalidCell) return invalidCell;
 
     const exists = await Member.findOne({ phone: body.phone });
     if (exists) {
@@ -63,6 +86,9 @@ export async function PUT(req: Request) {
     if (updateData.status === "Member" && !updateData.cell) {
       return NextResponse.json({ error: "Assign a cell to complete the conversion" }, { status: 400 });
     }
+
+    const invalidCell = await canonicalizeHierarchy(updateData);
+    if (invalidCell) return invalidCell;
 
     const updatedMember = await Member.findByIdAndUpdate(
       _id,
