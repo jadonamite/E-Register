@@ -5,7 +5,7 @@ import { Logo } from "@/components/Logo";
 import { MemberList } from "@/components/MemberList";
 import { AddMemberModal } from "@/components/AddMemberModal";
 import { useMembers } from "@/hooks/use-members";
-import { MagnifyingGlass, Pulse, CalendarBlank, Plus } from "@phosphor-icons/react";
+import { MagnifyingGlass, Pulse, CalendarBlank, Plus, X } from "@phosphor-icons/react";
 import { format } from "date-fns";
 import { MarkerBar } from "@/components/MarkerBar";
 
@@ -116,46 +116,51 @@ export default function PFCCDashboard() {
               </div>
 
               {/* Hierarchy Filters */}
-              <div className="flex flex-wrap gap-2">
-                <select
-                  value={filterType}
-                  onChange={(e) => {
-                    setFilterType(e.target.value as any);
-                    setFilterValue("");
-                  }}
-                  className="px-4 py-2 border border-zinc-200 rounded-lg text-xs font-bold bg-white hover:border-zinc-300 transition-colors"
-                >
-                  <option value="all">All Members</option>
-                  <option value="team">Filter by Team</option>
-                  <option value="seniorCell">Filter by Senior Cell</option>
-                  <option value="cell">Filter by Cell</option>
-                </select>
+              <div className="space-y-3">
+                <div className="bg-zinc-100 p-1.5 rounded-full flex gap-1 w-fit max-w-full overflow-x-auto">
+                  {([
+                    ["all", "Everyone"],
+                    ["team", "Team"],
+                    ["seniorCell", "Senior Cell"],
+                    ["cell", "Cell"],
+                  ] as const).map(([type, label]) => (
+                    <button
+                      key={type}
+                      onClick={() => {
+                        setFilterType(type);
+                        setFilterValue("");
+                      }}
+                      className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all ${
+                        filterType === type
+                          ? "bg-white text-black shadow-sm"
+                          : "text-stone-400 hover:text-stone-600"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
 
                 {filterType !== "all" && (
-                  <select
-                    value={filterValue}
-                    onChange={(e) => setFilterValue(e.target.value)}
-                    className="px-4 py-2 border border-zinc-200 rounded-lg text-xs font-bold bg-white hover:border-zinc-300 transition-colors"
-                  >
-                    <option value="">Select {filterType === "team" ? "Team" : filterType === "seniorCell" ? "Senior Cell" : "Cell"}...</option>
-                    {filterOptions[filterType as keyof typeof filterOptions].map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                )}
-
-                {filterValue && (
-                  <button
-                    onClick={() => {
-                      setFilterType("all");
-                      setFilterValue("");
-                    }}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-xs font-bold hover:bg-gray-200 transition-colors"
-                  >
-                    Clear Filter
-                  </button>
+                  <div className="flex gap-2 overflow-x-auto pb-1 -mb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {filterOptions[filterType as keyof typeof filterOptions].map((option) => {
+                      const selected = filterValue === option;
+                      return (
+                        <button
+                          key={option}
+                          onClick={() => setFilterValue(selected ? "" : option)}
+                          className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap border transition-all ${
+                            selected
+                              ? "bg-stone-900 text-white border-stone-900 shadow-lg shadow-stone-900/10"
+                              : "bg-white text-stone-500 border-zinc-200 hover:border-stone-300 hover:text-stone-800"
+                          }`}
+                        >
+                          {option}
+                          {selected && <X size={12} weight="bold" className="opacity-60" />}
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </div>

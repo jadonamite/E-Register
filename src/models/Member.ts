@@ -75,5 +75,9 @@ const MemberSchema = new Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+// Accountability queries unwind attendance by date and group by hierarchy.
+MemberSchema.index({ status: 1, "attendance.date": 1 });
+MemberSchema.index({ team: 1, seniorCell: 1, cell: 1, status: 1 });
+
 const Member = models.Member || model("Member", MemberSchema);
 export default Member;

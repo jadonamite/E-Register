@@ -1,10 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { CaretDown, Users, UserPlus, Warning } from "@phosphor-icons/react";
+import {
+  CaretDown,
+  CaretLeft,
+  CaretRight,
+  UserPlus,
+  Warning,
+  ArrowUp,
+  ArrowDown,
+  Minus,
+  Trophy,
+  Pulse,
+  Fire,
+} from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
 
 interface NoShow {
   _id: string;
@@ -13,6 +24,7 @@ interface NoShow {
   cell: string;
   seniorCell: string;
   team: string;
+  weeksAbsent: number;
 }
 
 interface CellData {
@@ -37,6 +49,7 @@ interface TeamData {
   registered: number;
   attended: number;
   percentage: number;
+  movement: number | null;
   seniorCells: SeniorCellData[];
 }
 
@@ -44,6 +57,8 @@ interface WeeklyData {
   weekRange: { start: string; end: string };
   summary: {
     totalAttendance: number;
+    attendanceRate: number;
+    totalRegistered: number;
     totalFirstTimers: number;
     weekVsLastWeek: {
       thisWeek: number;
@@ -55,7 +70,6 @@ interface WeeklyData {
   teams: TeamData[];
   unassignedTeam?: TeamData | null;
   noShows: NoShow[];
-  firstTimers: any[];
   _meta?: {
     dataQualityIssues?: {
       unassignedCount: number;
@@ -64,292 +78,516 @@ interface WeeklyData {
   };
 }
 
+const SERVICES = ["All", "Sunday", "Mid-Week"] as const;
+type Service = (typeof SERVICES)[number];
+
+/** Monday–Sunday of the week `offset` weeks away from the current one, in local time. */
+function weekRange(offset: number): { start: Date; end: Date } {
+  const now = new Date();
+  const day = now.getDay();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1) + offset * 7);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return { start: monday, end: sunday };
+}
+
+function performanceText(percentage: number) {
+  if (percentage >= 80) return "text-emerald-700 bg-emerald-50";
+  if (percentage >= 60) return "text-amber-700 bg-amber-50";
+  return "text-rose-700 bg-rose-50";
+}
+
+function performanceBar(percentage: number) {
+  if (percentage >= 80) return "bg-emerald-500";
+  if (percentage >= 60) return "bg-amber-400";
+  return "bg-rose-500";
+}
+
+function MovementChip({ movement }: { movement: number | null }) {
+  if (movement === null) {
+    return (
+      <span className="px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-400 text-[9px] font-black uppercase tracking-wider">
+        New
+      </span>
+    );
+  }
+  if (movement === 0) {
+    return (
+      <span className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-zinc-50 text-zinc-400 text-[10px] font-black">
+        <Minus size={10} weight="bold" />
+      </span>
+    );
+  }
+  const up = movement > 0;
+  return (
+    <span
+      className={`flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-black ${
+        up ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
+      }`}
+    >
+      {up ? <ArrowUp size={10} weight="bold" /> : <ArrowDown size={10} weight="bold" />}
+      {Math.abs(movement)}
+    </span>
+  );
+}
+
+function StreakBadge({ weeks }: { weeks: number }) {
+  const chronic = weeks >= 3;
+  return (
+    <span
+      className={`flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0 ${
+        chronic ? "bg-rose-100 text-rose-700" : "bg-zinc-100 text-zinc-500"
+      }`}
+    >
+      {chronic && <Fire size={10} weight="fill" />}
+      {weeks >= 8 ? "8+ wks" : `${weeks} wk${weeks > 1 ? "s" : ""}`}
+    </span>
+  );
+}
+
 export function WeeklyAccountability() {
   const [data, setData] = useState<WeeklyData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [service, setService] = useState<Service>("All");
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
   const [expandedSeniorCell, setExpandedSeniorCell] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | "team" | "seniorCell" | "cell">("all");
-  const [filterValue, setFilterValue] = useState<string>("");
+
+  const range = useMemo(() => weekRange(weekOffset), [weekOffset]);
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchData = async () => {
+      setLoading(true);
       try {
-        const res = await fetch("/api/weekly-accountability");
-        if (res.ok) {
-          setData(await res.json());
-        }
+        const params = new URLSearchParams({
+          startDate: format(range.start, "yyyy-MM-dd"),
+          endDate: format(range.end, "yyyy-MM-dd"),
+        });
+        if (service !== "All") params.set("serviceType", service);
+        const res = await fetch(`/api/weekly-accountability?${params}`, {
+          signal: controller.signal,
+        });
+        if (res.ok) setData(await res.json());
       } catch (e) {
-        console.error(e);
+        if (!(e instanceof DOMException && e.name === "AbortError")) console.error(e);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
     fetchData();
-  }, []);
+    return () => controller.abort();
+  }, [range, service]);
 
-  if (loading) {
-    return (
-      <div className="text-center py-12 opacity-30">
-        <p className="text-sm font-bold text-gray-600">Loading accountability data...</p>
-      </div>
-    );
-  }
+  const weekLabel =
+    weekOffset === 0
+      ? "This Week"
+      : weekOffset === -1
+        ? "Last Week"
+        : `${format(range.start, "MMM d")} – ${format(range.end, "MMM d")}`;
 
-  if (!data) {
-    return (
-      <div className="text-center py-12 opacity-30">
-        <p className="text-sm font-bold text-gray-600">No data available</p>
-      </div>
-    );
-  }
-
-  const getPerformanceColor = (percentage: number) => {
-    if (percentage >= 80) return "text-emerald-700 bg-emerald-50";
-    if (percentage >= 60) return "text-amber-700 bg-amber-50";
-    return "text-red-700 bg-red-50";
-  };
-
-  const getPerformanceBadgeColor = (percentage: number) => {
-    if (percentage >= 80) return "bg-emerald-500";
-    if (percentage >= 60) return "bg-amber-500";
-    return "bg-red-500";
-  };
-
-  const toggleTeam = (teamName: string) => {
-    setExpandedTeam(expandedTeam === teamName ? null : teamName);
-  };
-
-  const toggleSeniorCell = (seniorCellName: string) => {
-    setExpandedSeniorCell(expandedSeniorCell === seniorCellName ? null : seniorCellName);
-  };
-
-  const filteredTeams = data.teams.filter((team) => {
-    if (filter === "all") return true;
-    if (filter === "team") return team.name.toLowerCase().includes(filterValue.toLowerCase());
-    return false;
-  });
-
-  const { change, percentageChange } = data.summary.weekVsLastWeek;
-  const trendUp = change >= 0;
+  const chronicCount = data?.noShows.filter((n) => n.weeksAbsent >= 3).length ?? 0;
+  const trend = data?.summary.weekVsLastWeek;
+  const trendUp = (trend?.change ?? 0) >= 0;
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-black text-gray-900 mb-1">Weekly Accountability</h2>
-        <p className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">
-          {data.weekRange.start} to {data.weekRange.end}
-        </p>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white border border-zinc-100 rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Attendance</span>
-            <Users size={18} className="text-gray-400" />
-          </div>
-          <div className="text-4xl font-black text-gray-900">{data.summary.totalAttendance}</div>
-          <div className={`text-xs font-bold mt-2 ${trendUp ? "text-emerald-700" : "text-red-700"}`}>
-            {trendUp ? "↑" : "↓"} {Math.abs(change)} vs last week ({percentageChange > 0 ? "+" : ""}{percentageChange}%)
-          </div>
+    <div className="space-y-6">
+      {/* CONTROLS */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-3xl sm:text-4xl font-black tracking-tighter text-gray-900">
+            Weekly Accountability
+          </h2>
+          <p className="text-[10px] uppercase font-black text-gray-400 tracking-[0.3em] mt-1">
+            {format(range.start, "MMM d")} — {format(range.end, "MMM d, yyyy")}
+          </p>
         </div>
 
-        <div className="bg-white border border-zinc-100 rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">First Timers</span>
-            <UserPlus size={18} className="text-emerald-500" />
-          </div>
-          <div className="text-4xl font-black text-gray-900">{data.summary.totalFirstTimers}</div>
-          <div className="text-xs font-bold text-gray-400 mt-2">New visitors this week</div>
-        </div>
-
-        <div className="bg-white border border-zinc-100 rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No-Shows</span>
-            <Warning size={18} className="text-red-500" />
-          </div>
-          <div className="text-4xl font-black text-gray-900">{data.noShows.length}</div>
-          <div className="text-xs font-bold text-gray-400 mt-2">Follow-up needed</div>
-        </div>
-      </div>
-
-      {/* Filter */}
-      <div className="flex gap-3">
-        <select
-          value={filter}
-          onChange={(e) => {
-            setFilter(e.target.value as any);
-            setFilterValue("");
-          }}
-          className="px-4 py-2 border border-zinc-200 rounded-lg text-sm font-bold"
-        >
-          <option value="all">All Teams</option>
-          <option value="team">Filter by Team</option>
-        </select>
-        {filter !== "all" && (
-          <input
-            type="text"
-            placeholder="Search..."
-            value={filterValue}
-            onChange={(e) => setFilterValue(e.target.value)}
-            className="flex-1 px-4 py-2 border border-zinc-200 rounded-lg text-sm font-bold"
-          />
-        )}
-      </div>
-
-      {/* Hierarchical Leaderboard */}
-      <div className="space-y-3">
-        {filteredTeams.map((team) => (
-          <div key={team.name} className="border border-zinc-100 rounded-2xl overflow-hidden">
-            {/* Team Header */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="glass-frosted rounded-full flex items-center p-1.5">
             <button
-              onClick={() => toggleTeam(team.name)}
-              className="w-full px-6 py-4 bg-white hover:bg-gray-50 flex items-center justify-between transition-colors border-b border-zinc-50"
+              onClick={() => setWeekOffset((w) => w - 1)}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-900 hover:bg-white transition-all"
+              aria-label="Previous week"
             >
-              <div className="flex items-center gap-4 flex-1 min-w-0">
-                <div className="flex-1">
-                  <h3 className="text-sm font-black text-gray-900 text-left">{team.name}</h3>
-                  <p className="text-[10px] text-gray-500 uppercase tracking-widest">
-                    {team.attended} / {team.registered} attended
+              <CaretLeft size={16} weight="bold" />
+            </button>
+            <span className="px-3 min-w-[110px] text-center text-[10px] font-black uppercase tracking-widest text-gray-700">
+              {weekLabel}
+            </span>
+            <button
+              onClick={() => setWeekOffset((w) => Math.min(0, w + 1))}
+              disabled={weekOffset === 0}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-900 hover:bg-white transition-all disabled:opacity-20 disabled:hover:bg-transparent"
+              aria-label="Next week"
+            >
+              <CaretRight size={16} weight="bold" />
+            </button>
+          </div>
+
+          <div className="bg-zinc-100 p-1.5 rounded-full flex gap-1">
+            {SERVICES.map((s) => (
+              <button
+                key={s}
+                onClick={() => setService(s)}
+                className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${
+                  service === s ? "bg-white text-black shadow-sm" : "text-stone-400 hover:text-stone-600"
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {loading || !data ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className={`bento-card h-48 animate-pulse bg-zinc-50 ${i === 0 ? "lg:col-span-2" : ""}`}
+            />
+          ))}
+          <div className="bento-card h-96 animate-pulse bg-zinc-50 lg:col-span-3" />
+          <div className="bento-card h-96 animate-pulse bg-zinc-50" />
+        </div>
+      ) : (
+        <>
+          {/* HERO STATS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Attendance hero */}
+            <div className="lg:col-span-2 bento-card bg-[#111] border-none text-white p-8 relative overflow-hidden flex flex-col justify-between min-h-[200px]">
+              <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#3f3f46_1px,transparent_1px)] [background-size:16px_16px]" />
+              <div className="relative z-10 flex items-start justify-between">
+                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md border border-white/5">
+                  <Pulse size={20} className="text-emerald-400" />
+                </div>
+                {trend && (
+                  <div
+                    className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wide flex items-center gap-1 ${
+                      trendUp ? "bg-emerald-400/10 text-emerald-300" : "bg-rose-400/10 text-rose-300"
+                    }`}
+                  >
+                    {trendUp ? <ArrowUp size={12} weight="bold" /> : <ArrowDown size={12} weight="bold" />}
+                    {Math.abs(trend.change)} vs last week
+                  </div>
+                )}
+              </div>
+              <div className="relative z-10 mt-4 flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1">
+                    Weekly Attendance
+                  </p>
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-6xl sm:text-7xl font-black tracking-tighter">
+                      {data.summary.attendanceRate}%
+                    </span>
+                    <span className="text-sm font-bold text-white/40">
+                      {data.summary.totalAttendance} / {data.summary.totalRegistered}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* First timers */}
+            <div className="bento-card p-6 flex flex-col justify-between relative overflow-hidden group">
+              <div className="flex items-start justify-between">
+                <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
+                  <UserPlus size={20} weight="bold" />
+                </div>
+                <span className="relative flex h-3 w-3 mt-1">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
+                </span>
+              </div>
+              <div className="mt-4">
+                <p className="text-5xl font-black tracking-tighter text-gray-900">
+                  {data.summary.totalFirstTimers}
+                </p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-2">
+                  First Timers
+                </p>
+              </div>
+            </div>
+
+            {/* No-shows */}
+            <div className="bento-card p-6 flex flex-col justify-between relative overflow-hidden border-rose-100 bg-rose-50/20">
+              <div className="flex items-start justify-between">
+                <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center text-rose-500">
+                  <Warning size={20} weight="bold" />
+                </div>
+                {chronicCount > 0 && (
+                  <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 text-[9px] font-black uppercase tracking-wider">
+                    <Fire size={10} weight="fill" /> {chronicCount} at 3+ wks
+                  </span>
+                )}
+              </div>
+              <div className="mt-4">
+                <p className="text-5xl font-black tracking-tighter text-gray-900">{data.noShows.length}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-2">
+                  No-Shows
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* LEADERBOARD + FOLLOW-UP RAIL */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+            {/* Leaderboard */}
+            <div className="lg:col-span-3 bento-card p-6 sm:p-8 hover:transform-none">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center text-amber-500">
+                  <Trophy size={18} weight="duotone" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">
+                    Team Leaderboard
+                  </h3>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                    Ranked by attendance — tap to drill down
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <div className={`px-3 py-1 rounded-full text-sm font-black ${getPerformanceColor(team.percentage)}`}>
-                  {team.percentage}%
-                </div>
-                <CaretDown
-                  size={20}
-                  className={`text-gray-400 transition-transform ${expandedTeam === team.name ? "rotate-180" : ""}`}
-                />
-              </div>
-            </button>
 
-            {/* Senior Cells (Expanded) */}
-            <AnimatePresence>
-              {expandedTeam === team.name && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="bg-gray-50 border-t border-zinc-100 divide-y divide-zinc-100"
-                >
-                  {team.seniorCells.map((seniorCell) => (
-                    <div key={seniorCell.name}>
+              {data.teams.length === 0 ? (
+                <div className="text-center py-16 opacity-30">
+                  <p className="text-xs font-black uppercase tracking-widest text-gray-600">
+                    No attendance recorded this week
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {data.teams.map((team, rank) => (
+                    <div
+                      key={team.name}
+                      className="border border-zinc-100 rounded-3xl overflow-hidden bg-white"
+                    >
                       <button
-                        onClick={() => toggleSeniorCell(seniorCell.name)}
-                        className="w-full px-6 py-3 flex items-center justify-between hover:bg-gray-100 transition-colors text-left"
+                        onClick={() =>
+                          setExpandedTeam(expandedTeam === team.name ? null : team.name)
+                        }
+                        className="w-full px-5 sm:px-6 py-4 hover:bg-zinc-50/80 transition-colors text-left"
                       >
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-xs font-bold text-gray-700 ml-4">{seniorCell.name}</h4>
-                          <p className="text-[9px] text-gray-500 uppercase ml-4">
-                            {seniorCell.attended} / {seniorCell.registered}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          <div className={`px-2 py-0.5 rounded text-xs font-bold ${getPerformanceColor(seniorCell.percentage)}`}>
-                            {seniorCell.percentage}%
+                        <div className="flex items-center gap-4">
+                          <div
+                            className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
+                              rank === 0
+                                ? "bg-gray-900 text-white"
+                                : "bg-zinc-100 text-zinc-500"
+                            }`}
+                          >
+                            {rank + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-sm font-black text-gray-900 truncate">
+                                {team.name}
+                              </h4>
+                              <MovementChip movement={team.movement} />
+                            </div>
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">
+                              {team.attended} / {team.registered} attended
+                            </p>
+                          </div>
+                          <div
+                            className={`px-3 py-1 rounded-full text-sm font-black shrink-0 ${performanceText(team.percentage)}`}
+                          >
+                            {team.percentage}%
                           </div>
                           <CaretDown
-                            size={16}
-                            className={`text-gray-400 transition-transform ${expandedSeniorCell === seniorCell.name ? "rotate-180" : ""}`}
+                            size={18}
+                            className={`text-gray-300 transition-transform shrink-0 ${
+                              expandedTeam === team.name ? "rotate-180" : ""
+                            }`}
+                          />
+                        </div>
+                        <div className="mt-3 ml-[52px] h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${team.percentage}%` }}
+                            transition={{ duration: 0.8, delay: rank * 0.05 }}
+                            className={`h-full rounded-full ${performanceBar(team.percentage)}`}
                           />
                         </div>
                       </button>
 
-                      {/* Cells (Expanded) */}
                       <AnimatePresence>
-                        {expandedSeniorCell === seniorCell.name && (
+                        {expandedTeam === team.name && (
                           <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="bg-white divide-y divide-zinc-50"
+                            className="bg-zinc-50/60 border-t border-zinc-100 divide-y divide-zinc-100"
                           >
-                            {seniorCell.cells.map((cell) => (
-                              <div key={cell.name} className="px-6 py-3 ml-8 space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <h5 className="text-xs font-bold text-gray-900">{cell.name}</h5>
-                                    <p className="text-[9px] text-gray-500">
-                                      {cell.attended}/{cell.registered} attended {cell.firstTimers > 0 && `• ${cell.firstTimers} first-timer(s)`}
-                                    </p>
-                                  </div>
-                                  <div className={`px-2 py-0.5 rounded text-xs font-bold ${getPerformanceColor(cell.percentage)}`}>
-                                    {cell.percentage}%
-                                  </div>
-                                </div>
-
-                                {cell.noShows.length > 0 && (
-                                  <div className="mt-2 pt-2 border-t border-zinc-100 space-y-1">
-                                    <p className="text-[9px] font-bold text-red-600 uppercase">No-shows:</p>
-                                    {cell.noShows.map((member) => (
-                                      <div key={member._id} className="text-[9px] text-gray-600">
-                                        • {member.name} ({member.role})
+                            {team.seniorCells.map((seniorCell) => {
+                              const scKey = `${team.name}::${seniorCell.name}`;
+                              return (
+                                <div key={scKey}>
+                                  <button
+                                    onClick={() =>
+                                      setExpandedSeniorCell(
+                                        expandedSeniorCell === scKey ? null : scKey
+                                      )
+                                    }
+                                    className="w-full pl-10 pr-6 py-3 flex items-center justify-between hover:bg-zinc-100/60 transition-colors text-left"
+                                  >
+                                    <div className="flex-1 min-w-0">
+                                      <h5 className="text-xs font-black text-gray-700 truncate">
+                                        {seniorCell.name}
+                                      </h5>
+                                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                                        {seniorCell.attended} / {seniorCell.registered}
+                                      </p>
+                                    </div>
+                                    <div className="flex items-center gap-3 shrink-0">
+                                      <div
+                                        className={`px-2.5 py-0.5 rounded-full text-xs font-black ${performanceText(seniorCell.percentage)}`}
+                                      >
+                                        {seniorCell.percentage}%
                                       </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
+                                      <CaretDown
+                                        size={14}
+                                        className={`text-gray-300 transition-transform ${
+                                          expandedSeniorCell === scKey ? "rotate-180" : ""
+                                        }`}
+                                      />
+                                    </div>
+                                  </button>
+
+                                  <AnimatePresence>
+                                    {expandedSeniorCell === scKey && (
+                                      <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: "auto" }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="bg-white divide-y divide-zinc-50"
+                                      >
+                                        {seniorCell.cells.map((cell) => (
+                                          <div key={cell.name} className="pl-14 pr-6 py-3">
+                                            <div className="flex items-center justify-between">
+                                              <div className="min-w-0">
+                                                <h6 className="text-xs font-black text-gray-900 truncate">
+                                                  {cell.name}
+                                                </h6>
+                                                <p className="text-[9px] font-bold text-gray-400">
+                                                  {cell.attended}/{cell.registered} attended
+                                                  {cell.firstTimers > 0 &&
+                                                    ` · ${cell.firstTimers} first-timer${cell.firstTimers > 1 ? "s" : ""}`}
+                                                </p>
+                                              </div>
+                                              <div
+                                                className={`px-2.5 py-0.5 rounded-full text-xs font-black shrink-0 ${performanceText(cell.percentage)}`}
+                                              >
+                                                {cell.percentage}%
+                                              </div>
+                                            </div>
+                                            {cell.noShows.length > 0 && (
+                                              <div className="mt-2 flex flex-wrap gap-1.5">
+                                                {cell.noShows.map((member) => (
+                                                  <span
+                                                    key={member._id}
+                                                    className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 text-rose-700 rounded-full text-[9px] font-bold"
+                                                  >
+                                                    {member.name}
+                                                    <span className="opacity-50 font-black">
+                                                      {member.weeksAbsent >= 8
+                                                        ? "8+w"
+                                                        : `${member.weeksAbsent}w`}
+                                                    </span>
+                                                  </span>
+                                                ))}
+                                              </div>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              );
+                            })}
                           </motion.div>
                         )}
                       </AnimatePresence>
                     </div>
                   ))}
-                </motion.div>
+                </div>
               )}
-            </AnimatePresence>
-          </div>
-        ))}
-      </div>
-
-      {/* Data Quality Issues: Unassigned Members */}
-      {data.unassignedTeam && data.unassignedTeam.registered > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-6">
-          <div className="flex items-start gap-3 mb-4">
-            <div className="w-8 h-8 rounded-full bg-amber-200 flex items-center justify-center text-amber-700 font-bold">!</div>
-            <div>
-              <h3 className="font-bold text-amber-900">Data Quality Issue</h3>
-              <p className="text-sm text-amber-800 mt-1">{data._meta?.dataQualityIssues?.unassignedMessage}</p>
             </div>
-          </div>
-          <div className="text-sm text-amber-700">
-            <p className="mb-3">These members lack proper organization hierarchy assignment:</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {data.unassignedTeam.seniorCells?.map((sc) =>
-                sc.cells?.map((cell) => (
-                  <div key={cell.name} className="bg-white rounded p-3 text-xs">
-                    <p className="font-bold text-gray-900">{cell.name || "Unassigned Cell"}</p>
-                    <p className="text-gray-600">{cell.attended} / {cell.registered} attended</p>
+
+            {/* Rail: follow-up + data quality */}
+            <div className="space-y-6">
+              <div className="bento-card p-6 border-rose-100 bg-rose-50/10 hover:transform-none">
+                <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-1 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                  Follow-Up Priority
+                </h3>
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-4">
+                  Longest absence streaks first
+                </p>
+
+                {data.noShows.length === 0 ? (
+                  <div className="text-center py-6 opacity-40">
+                    <p className="text-[10px] font-black uppercase tracking-widest">
+                      Full attendance — all clear
+                    </p>
                   </div>
-                ))
+                ) : (
+                  <div className="space-y-2">
+                    {data.noShows.slice(0, 8).map((member) => (
+                      <div
+                        key={member._id}
+                        className="flex items-center justify-between gap-2 p-3 bg-white rounded-2xl border border-rose-100/60 shadow-sm"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-[10px] font-black text-rose-600 shrink-0">
+                            {member.name.charAt(0)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-bold text-xs text-gray-900 truncate leading-none">
+                              {member.name}
+                            </p>
+                            <p className="text-[8px] uppercase font-bold text-gray-400 tracking-wider mt-1 truncate">
+                              {member.cell}
+                            </p>
+                          </div>
+                        </div>
+                        <StreakBadge weeks={member.weeksAbsent} />
+                      </div>
+                    ))}
+                    {data.noShows.length > 8 && (
+                      <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest text-center pt-2">
+                        +{data.noShows.length - 8} more to follow up
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {data.unassignedTeam && data.unassignedTeam.registered > 0 && (
+                <div className="bento-card p-6 border-amber-100 bg-amber-50/20 hover:transform-none">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                      <Warning size={16} weight="bold" />
+                    </div>
+                    <h3 className="text-xs font-black text-amber-900 uppercase tracking-widest">
+                      Data Quality
+                    </h3>
+                  </div>
+                  <p className="text-xs font-medium text-amber-800 leading-relaxed">
+                    {data._meta?.dataQualityIssues?.unassignedMessage}
+                  </p>
+                  <p className="text-[9px] font-bold text-amber-600/70 uppercase tracking-wider mt-3">
+                    Assign them a team, senior cell & cell to include them in rankings
+                  </p>
+                </div>
               )}
             </div>
           </div>
-        </div>
-      )}
-
-      {/* No-Shows Summary */}
-      {data.noShows.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
-          <h3 className="text-sm font-bold text-red-900 mb-4">Follow-up Needed ({data.noShows.length})</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {data.noShows.slice(0, 10).map((member) => (
-              <div key={member._id} className="bg-white rounded-lg p-3 text-xs">
-                <p className="font-bold text-gray-900">{member.name}</p>
-                <p className="text-gray-600">{member.cell} • {member.role}</p>
-              </div>
-            ))}
-          </div>
-          {data.noShows.length > 10 && (
-            <p className="text-[9px] text-red-600 mt-3 text-center">
-              ...and {data.noShows.length - 10} more
-            </p>
-          )}
-        </div>
+        </>
       )}
     </div>
   );

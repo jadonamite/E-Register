@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 import { Logo } from "@/components/Logo";
 import { GrowthChart } from "@/components/exec/GrowthChart";
 import { ConnectivityEffect } from "@/components/exec/ConnectivityEffect";
-import { PromptnessAnalytics } from "@/components/exec/PromptnessAnalytics";
 import { WeeklyAccountability } from "@/components/exec/WeeklyAccountability";
 import { PromptnessHierarchy } from "@/components/exec/PromptnessHierarchy";
 import { motion } from "framer-motion";
-import { Users, Warning, ShieldCheck, Lightning, UserPlus, TrendUp, Target, CaretRight, GearSix } from "@phosphor-icons/react";
+import { Users, Lightning, GearSix, TrendUp } from "@phosphor-icons/react";
 import Link from "next/link";
+import { format } from "date-fns";
 import { LogoutButton } from "@/components/LogoutButton";
 
 export default function ExecutiveDashboard() {
@@ -21,7 +21,7 @@ export default function ExecutiveDashboard() {
       try {
         const res = await fetch("/api/analytics");
         if (res.ok) setData(await res.json());
-      } catch (e) { console.error(e); } 
+      } catch (e) { console.error(e); }
       finally { setLoading(false); }
     }
     fetchStats();
@@ -36,31 +36,21 @@ export default function ExecutiveDashboard() {
     </div>
   );
 
-  // --- DERIVED DATA ---
-  const cellStats = data?.cellStats || {};
-  const topCell = Object.keys(cellStats).reduce((a, b) => cellStats[a] > cellStats[b] ? a : b, "N/A");
-  const topCellCount = cellStats[topCell] || 0;
-  
-  const avgAtt = data?.trend?.length 
-    ? Math.round(data.trend.reduce((a:any, b:any) => a + b.count, 0) / data.trend.length) 
+  const avgAtt = data?.trend?.length
+    ? Math.round(data.trend.reduce((a: any, b: any) => a + b.count, 0) / data.trend.length)
     : 0;
-
-  // Goal Logic
-  const currentCount = data?.totalMembers || 0;
-  const nextGoal = Math.ceil((currentCount + 0.1) / 50) * 50; // Always looks for next 50
-  const progressToGoal = Math.min((currentCount / nextGoal) * 100, 100);
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] p-4 md:p-8 font-unio max-w-[1600px] mx-auto relative overflow-hidden">
-      
+
       <ConnectivityEffect />
 
       <div className="relative z-10">
-        <header className="flex justify-between items-center mb-8 pl-2">
+        <header className="flex justify-between items-center mb-10 pl-2">
           <Logo />
           <div className="flex items-center gap-3">
-            <div className="glass-frosted px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest text-gray-400">
-              Feb 2026
+            <div className="glass-frosted px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest text-gray-400 hidden sm:block">
+              {format(new Date(), "MMM yyyy")}
             </div>
             <Link
               href="/admin"
@@ -72,223 +62,59 @@ export default function ExecutiveDashboard() {
           </div>
         </header>
 
-        {/* 4-COLUMN MASONRY GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 auto-rows-[minmax(180px,auto)]">
-          
-          {/* 1. CONVERSION RATE (Tall Pink Left) */}
-          <div className="lg:row-span-2 bento-card p-0 relative overflow-hidden flex flex-col items-center justify-between text-center group border-none">
-             <div className="absolute inset-0 bg-[var(--color-pearl-pink)] opacity-50 z-0" />
-             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-pink-300 to-transparent z-10" />
+        {/* PRIMARY: WEEKLY ACCOUNTABILITY */}
+        <WeeklyAccountability />
 
-             <div className="relative z-10 mt-12 mb-8">
-               <div className="relative w-40 h-40">
-                 <svg className="transform -rotate-90 w-full h-full drop-shadow-xl">
-                   <circle cx="80" cy="80" r="70" stroke="white" strokeWidth="12" fill="transparent" opacity={0.6} />
-                   <motion.circle 
-                      initial={{ strokeDashoffset: 440 }}
-                      animate={{ strokeDashoffset: 440 - (24/100)*440 }}
-                      transition={{ duration: 1.5, delay: 0.2 }}
-                      cx="80" cy="80" r="70" 
-                      stroke="#ec4899" strokeWidth="12" fill="transparent" strokeDasharray={440} strokeLinecap="round" 
-                   />
-                 </svg>
-                 <div className="absolute inset-0 flex items-center justify-center flex-col">
-                   <span className="text-4xl font-black text-rose-950">24%</span>
-                 </div>
-               </div>
-             </div>
-             
-             <div className="relative z-10 w-full bg-white/40 backdrop-blur-md p-6 border-t border-white/20">
-                <h3 className="text-xl font-bold text-rose-950 leading-tight mb-1">Retention Rate</h3>
-                <p className="text-[10px] uppercase font-bold text-rose-900/50 tracking-widest">Pipeline Health</p>
-             </div>
+        {/* SECONDARY: GROWTH + DATABASE */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mt-6">
+
+          <div className="lg:col-span-3 bg-[#18181b] rounded-[2rem] border border-white/5 overflow-hidden relative min-h-[240px]">
+            <div className="absolute inset-0 z-0 opacity-20 bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]" />
+            <div className="absolute top-6 left-8 z-20 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center border border-white/5">
+                <TrendUp size={16} className="text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Attendance Trend</p>
+                <p className="text-[9px] font-bold text-white/20 uppercase tracking-wider">Avg {avgAtt} per service</p>
+              </div>
+            </div>
+            <div className="relative z-10 h-full w-full p-4 flex items-end">
+              <GrowthChart trend={data?.trend} />
+            </div>
           </div>
 
-
-          {/* 2. TOTAL MEMBERSHIP (Wide Top) */}
-          <div className="lg:col-span-2 bento-card p-8 relative overflow-hidden flex flex-col justify-between group">
-             <div className="absolute -right-8 -top-8 text-gray-50 transition-transform group-hover:scale-110 duration-700">
-               <Users size={180} weight="fill" />
-             </div>
-             
-             <div className="relative z-10 flex justify-between items-start">
-                <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400">
-                   <Users size={20} weight="bold" />
-                </div>
-                <div className="px-3 py-1 bg-[var(--color-unio-emerald)]/10 text-[var(--color-unio-emerald)] rounded-full text-[10px] font-black uppercase tracking-wide flex items-center gap-1">
-                  <Lightning weight="fill" /> Active
-                </div>
-             </div>
-             
-             <div className="relative z-10 mt-4">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Total Database</h3>
-                <span className="text-7xl font-black tracking-tighter text-gray-900">{data?.totalMembers || 0}</span>
-             </div>
-          </div>
-
-
-          {/* 3. FIRST TIMERS (Notification Badge) */}
-          <div className="bento-card p-6 flex flex-col justify-center relative overflow-hidden group">
-             <div className="absolute top-6 right-6 flex items-center gap-2">
-                <span className="text-[9px] font-black uppercase tracking-widest text-gray-300 group-hover:text-[var(--color-unio-emerald)] transition-colors">Growth</span>
-                <span className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--color-unio-emerald)] opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-[var(--color-unio-emerald)]"></span>
-                </span>
-             </div>
-             <div className="mt-4">
-               <p className="text-5xl font-black tracking-tighter text-gray-900">{data?.firstTimers || 0}</p>
-               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-2">New Profiles</p>
-             </div>
-          </div>
-
-
-          {/* 4. BLACK BOX (Risk) */}
-          <div className="bento-card bg-[#111] border-none text-white p-8 relative overflow-hidden flex flex-col justify-between group">
-             <div className="absolute -right-6 -bottom-6 text-white/5 transition-transform group-hover:rotate-12 duration-500">
-               <Warning size={140} weight="fill" />
-             </div>
-             <div className="relative z-10">
-               <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md border border-white/5">
-                 <Warning size={20} className="text-red-400" />
-               </div>
-             </div>
-             <div className="relative z-10">
-               <span className="text-6xl font-black tracking-tighter">{data?.riskCount || 0}</span>
-               <p className="text-[10px] font-bold opacity-40 uppercase tracking-widest mt-2">Retention Risk</p>
-             </div>
-          </div>
-
-
-          {/* 5. AVG ATTENDANCE (Sparkline) */}
-          <div className="bento-card p-6 relative overflow-hidden flex flex-col justify-between group">
-             <div className="absolute bottom-0 left-0 right-0 h-24 opacity-10 text-[var(--color-unio-emerald)] pointer-events-none">
-                <svg viewBox="0 0 500 150" preserveAspectRatio="none" className="h-full w-full fill-current">
-                  <path d="M0.00,49.98 C149.99,150.00 349.20,-49.98 500.00,49.98 L500.00,150.00 L0.00,150.00 Z" />
-                </svg>
-             </div>
-             <div className="flex justify-between items-start z-10">
-                <div className="p-2 bg-gray-50 rounded-lg">
-                   <TrendUp size={20} className="text-gray-400" />
-                </div>
-                <span className="text-[9px] font-bold text-[var(--color-unio-emerald)] bg-[var(--color-unio-emerald)]/5 px-2 py-1 rounded-md">Stable</span>
-             </div>
-             <div className="z-10 mt-4">
-                <p className="text-4xl font-black tracking-tighter text-gray-900">{avgAtt}</p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-1">Avg. Attendance</p>
-             </div>
-          </div>
-
-
-          {/* 6. LEADING CELL (Mint) */}
-          <div className="bento-card p-8 flex items-center justify-between group bg-[#F0FDFA] border-emerald-100 relative overflow-hidden">
-             <div className="relative z-10">
-                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600/60 mb-2">Leading Cell</p>
-                <h3 className="text-3xl font-black tracking-tighter text-emerald-900">{topCell}</h3>
-                <div className="flex items-center gap-2 mt-2">
-                   <ShieldCheck size={16} weight="fill" className="text-emerald-500" />
-                   <span className="text-xs font-bold text-emerald-800">{topCellCount} Members</span>
-                </div>
-             </div>
-          </div>
-
-
-          {/* 7. GROWTH CHART (Wide) */}
-          <div className="lg:col-span-2 bg-[#18181b] rounded-[2rem] border border-white/5 overflow-hidden relative min-h-[220px]">
-             <div className="absolute inset-0 z-0 opacity-20 bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]" />
-             <div className="relative z-10 h-full w-full p-4 flex items-end">
-                <GrowthChart trend={data?.trend} />
-             </div>
-          </div>
-
-
-          {/* 8. NEXT GOAL (The Progress Bar) */}
-          <div className="lg:col-span-1 bento-card p-8 flex flex-col justify-center">
-             <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
-                   <Target weight="duotone" size={24} />
-                </div>
-                <div>
-                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Next Goal</p>
-                   <h3 className="text-2xl font-black text-gray-900">{nextGoal} Members</h3>
-                </div>
-             </div>
-             
-             <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden">
-                <motion.div 
-                   initial={{ width: 0 }} 
-                   animate={{ width: `${progressToGoal}%` }} 
-                   transition={{ duration: 1.5 }}
-                   className="h-full bg-emerald-500 rounded-full" 
-                />
-             </div>
-             <p className="text-[9px] font-bold text-gray-400 mt-3 text-right">{Math.round(progressToGoal)}% Reached</p>
-          </div>
-
-
-          {/* 9. CELL DISTRIBUTION (Full List) */}
-          <div className="lg:col-span-1 bento-card p-8">
-             <h3 className="text-xs font-bold text-gray-900 mb-4 uppercase tracking-widest">Cell Distribution</h3>
-             <div className="space-y-4">
-                {Object.entries(cellStats).sort(([,a]:any, [,b]:any) => b-a).slice(0, 3).map(([cell, count]: any, i) => (
-                  <div key={cell}>
-                    <div className="flex justify-between items-end mb-1">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-gray-900">{cell}</span>
-                      <span className="text-[10px] font-bold text-gray-400">{count}</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${(count / (data?.totalMembers || 1)) * 100}%` }}
-                        transition={{ duration: 1, delay: 0.2 * i }}
-                        className="h-full bg-gray-900 rounded-full" 
-                      />
-                    </div>
-                  </div>
-                ))}
-             </div>
-          </div>
-
-
-          {/* 10. RETENTION FOCUS (Full List - Bottom Wide) */}
-          <div className="lg:col-span-2 bento-card p-8 border-rose-100 bg-rose-50/10">
-             <h3 className="font-bold text-lg text-gray-900 mb-4 flex items-center gap-2">
-               <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-               Retention Focus Area
-             </h3>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-               {data?.riskList?.slice(0, 4).map((m: any) => (
-                  <div key={m._id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-rose-100 shadow-sm hover:shadow-md transition-all cursor-pointer group">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-[10px] font-black text-rose-600">
-                        {m.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm text-gray-900 leading-none">{m.name}</p>
-                        <p className="text-[9px] uppercase font-bold text-gray-400 tracking-wider mt-1">{m.cell}</p>
-                      </div>
-                    </div>
-                    <CaretRight className="text-gray-300 group-hover:text-rose-500 transition-colors" />
-                  </div>
-               ))}
-               {(!data?.riskList || data?.riskList.length === 0) && (
-                 <div className="col-span-2 text-center py-4 opacity-40 text-xs font-bold uppercase tracking-widest">All Clear! No Risks Detected.</div>
-               )}
-             </div>
-          </div>
-
-        </div>
-        {/* Weekly Accountability Section */}
-        <div className="mt-12 lg:mt-16">
-          <div className="bento-card p-8 lg:p-12">
-            <WeeklyAccountability />
+          <div className="bento-card p-8 relative overflow-hidden flex flex-col justify-between group">
+            <div className="absolute -right-8 -top-8 text-gray-50 transition-transform group-hover:scale-110 duration-700">
+              <Users size={160} weight="fill" />
+            </div>
+            <div className="relative z-10 flex justify-between items-start">
+              <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400">
+                <Users size={20} weight="bold" />
+              </div>
+              <div className="px-3 py-1 bg-[var(--color-unio-emerald)]/10 text-[var(--color-unio-emerald)] rounded-full text-[10px] font-black uppercase tracking-wide flex items-center gap-1">
+                <Lightning weight="fill" /> Active
+              </div>
+            </div>
+            <div className="relative z-10 mt-4">
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Total Database</h3>
+              <motion.span
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-6xl font-black tracking-tighter text-gray-900 block"
+              >
+                {data?.totalMembers || 0}
+              </motion.span>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-2">
+                {data?.firstTimers || 0} new profiles
+              </p>
+            </div>
           </div>
         </div>
 
-
-        {/* Attendance Promptness Analytics */}
-        <div className="mt-12 lg:mt-16">
-          <div className="bento-card p-8">
+        {/* PROMPTNESS */}
+        <div className="mt-6">
+          <div className="bento-card p-6 sm:p-8 hover:transform-none">
             <PromptnessHierarchy />
           </div>
         </div>
@@ -296,236 +122,3 @@ export default function ExecutiveDashboard() {
     </div>
   );
 }
-// "use client";
-
-// import { useEffect, useState } from "react";
-// import { Logo } from "@/components/Logo";
-// import { GrowthChart } from "@/components/exec/GrowthChart"; 
-// import { ConnectivityEffect } from "@/components/exec/ConnectivityEffect";
-// import { motion } from "framer-motion";
-// import { 
-//   Users, Warning, ShieldCheck, Lightning, 
-//   TrendUp, Target, CaretRight, Crown 
-// } from "@phosphor-icons/react";
-
-// export default function ExecutiveDashboard() {
-//   const [data, setData] = useState<any>(null);
-//   const [loading, setLoading] = useState(true);
-
-//   useEffect(() => {
-//     async function fetchStats() {
-//       try {
-//         const res = await fetch("/api/analytics");
-//         if (res.ok) setData(await res.json());
-//       } catch (e) { console.error(e); } 
-//       finally { setLoading(false); }
-//     }
-//     fetchStats();
-//   }, []);
-
-//   if (loading) return (
-//     <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB]">
-//       <div className="animate-pulse flex flex-col items-center gap-4">
-//         <Logo />
-//         <p className="text-[10px] font-black tracking-widest opacity-30 uppercase">Loading Command Center...</p>
-//       </div>
-//     </div>
-//   );
-
-//   const cellStats = data?.cellStats || {};
-//   const teamStats = data?.teamStats || {};
-//   const roleStats = data?.roleStats || {};
-  
-//   const topCell = Object.keys(cellStats).reduce((a, b) => cellStats[a] > cellStats[b] ? a : b, "N/A");
-//   const topCellCount = cellStats[topCell] || 0;
-  
-//   const avgAtt = data?.trend?.length 
-//     ? Math.round(data.trend.reduce((a:any, b:any) => a + b.count, 0) / data.trend.length) 
-//     : 0;
-
-//   const currentCount = data?.totalMembers || 0;
-//   const nextGoal = Math.ceil((currentCount + 0.1) / 50) * 50; 
-//   const progressToGoal = Math.min((currentCount / nextGoal) * 100, 100);
-
-//   return (
-//     <div className="min-h-screen bg-[#F9FAFB] p-4 md:p-8 max-w-[1600px] mx-auto relative overflow-hidden">
-//       <ConnectivityEffect />
-
-//       <div className="relative z-10">
-//         <header className="flex justify-between items-center mb-8 pl-2">
-//           <Logo />
-//           <div className="glass-frosted px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest text-gray-400">
-//             Feb 2026
-//           </div>
-//         </header>
-
-//         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 auto-rows-[minmax(180px,auto)]">
-          
-//           {/* 1. RETENTION RATE (Aggressive Pink) */}
-//           <div className="lg:row-span-2 bento-card p-0 relative overflow-hidden flex flex-col items-center justify-between text-center border-none">
-//              <div className="absolute inset-0 bg-pink-50 opacity-50 z-0" />
-//              <div className="relative z-10 mt-12 mb-8">
-//                <div className="relative w-40 h-40">
-//                  <svg className="transform -rotate-90 w-full h-full">
-//                    <circle cx="80" cy="80" r="70" stroke="white" strokeWidth="12" fill="transparent" opacity={0.6} />
-//                    <motion.circle 
-//                       initial={{ strokeDashoffset: 440 }}
-//                       animate={{ strokeDashoffset: 440 - (Math.max(10, 100 - (data?.riskCount/currentCount)*100 || 0) / 100) * 440 }}
-//                       transition={{ duration: 1.5 }}
-//                       cx="80" cy="80" r="70" 
-//                       stroke="#ec4899" strokeWidth="12" fill="transparent" strokeDasharray={440} strokeLinecap="round" 
-//                    />
-//                  </svg>
-//                  <div className="absolute inset-0 flex items-center justify-center flex-col">
-//                    <span className="text-4xl font-black text-rose-950">{Math.round(100 - (data?.riskCount/currentCount)*100 || 0)}%</span>
-//                  </div>
-//                </div>
-//              </div>
-//              <div className="relative z-10 w-full bg-white/40 backdrop-blur-md p-6 border-t border-white/20">
-//                 <h3 className="text-xl font-bold text-rose-950 leading-tight mb-1">Retention Health</h3>
-//                 <p className="text-[10px] uppercase font-bold text-rose-900/50 tracking-widest">Active vs Inactive</p>
-//              </div>
-//           </div>
-
-//           {/* 2. TOTAL MEMBERSHIP */}
-//           <div className="lg:col-span-2 bento-card p-8 relative overflow-hidden flex flex-col justify-between group">
-//              <div className="absolute -right-8 -top-8 text-gray-100/50 group-hover:scale-110 transition-transform duration-700">
-//                <Users size={180} weight="fill" />
-//              </div>
-//              <div className="relative z-10 flex justify-between items-start">
-//                 <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400"><Users size={20} weight="bold" /></div>
-//                 <div className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-black uppercase tracking-wide flex items-center gap-1">
-//                   <Lightning weight="fill" /> Database Active
-//                 </div>
-//              </div>
-//              <div className="relative z-10 mt-4">
-//                 <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Total Membership</h3>
-//                 <span className="text-7xl font-black tracking-tighter text-gray-900">{currentCount}</span>
-//              </div>
-//           </div>
-
-//           {/* 3. FIRST TIMERS */}
-//           <div className="bento-card p-6 flex flex-col justify-center relative overflow-hidden group">
-//              <div className="absolute top-6 right-6 flex items-center gap-2">
-//                 <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500">New Growth</span>
-//                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-//              </div>
-//              <div className="mt-4">
-//                <p className="text-5xl font-black tracking-tighter text-gray-900">{data?.firstTimers || 0}</p>
-//                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-2">New (Last 30 Days)</p>
-//              </div>
-//           </div>
-
-//           {/* 4. BLACK BOX (Leadership Pulse) */}
-//           <div className="bento-card bg-zinc-900 border-none text-white p-6 relative overflow-hidden flex flex-col justify-between">
-//              <div className="absolute -right-4 -bottom-4 text-white/5"><Crown size={120} weight="fill" /></div>
-//              <div className="relative z-10 flex items-center justify-between">
-//                 <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center"><Crown size={16} className="text-amber-400" /></div>
-//                 <span className="text-[9px] font-black uppercase tracking-widest opacity-40">Leader Count</span>
-//              </div>
-//              <div className="relative z-10">
-//                <span className="text-4xl font-black text-white">
-//                  {(roleStats['BST'] || 0) + (roleStats['Cell Leader'] || 0) + (roleStats['Senior Cell Leader'] || 0)}
-//                </span>
-//                <div className="flex gap-2 mt-2">
-//                  <div className="text-[8px] font-bold text-amber-200 uppercase bg-amber-200/10 px-1.5 py-0.5 rounded">BST: {roleStats['BST'] || 0}</div>
-//                  <div className="text-[8px] font-bold text-emerald-200 uppercase bg-emerald-200/10 px-1.5 py-0.5 rounded">Cell: {roleStats['Cell Leader'] || 0}</div>
-//                </div>
-//              </div>
-//           </div>
-
-//           {/* 5. TEAM DISTRIBUTION (New Hierarchy View) */}
-//           <div className="bento-card p-6 relative overflow-hidden flex flex-col justify-between">
-//              <div>
-//                 <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">Team Performance</h3>
-//                 <div className="space-y-3">
-//                   {Object.entries(teamStats).slice(0, 2).map(([team, count]: any) => (
-//                     <div key={team}>
-//                       <div className="flex justify-between text-[10px] font-black uppercase mb-1">
-//                         <span>{team}</span>
-//                         <span>{count}</span>
-//                       </div>
-//                       <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-//                         <div className="h-full bg-zinc-900" style={{ width: `${(count/currentCount)*100}%` }} />
-//                       </div>
-//                     </div>
-//                   ))}
-//                 </div>
-//              </div>
-//           </div>
-
-//           {/* 6. LEADING CELL */}
-//           <div className="bento-card p-8 flex items-center justify-between bg-[#F0FDFA] border-emerald-100">
-//              <div className="relative z-10">
-//                 <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600/60 mb-2">Top Performing Cell</p>
-//                 <h3 className="text-3xl font-black tracking-tighter text-emerald-900">{topCell}</h3>
-//                 <div className="flex items-center gap-2 mt-2">
-//                    <ShieldCheck size={16} weight="fill" className="text-emerald-500" />
-//                    <span className="text-xs font-bold text-emerald-800">{topCellCount} Members</span>
-//                 </div>
-//              </div>
-//           </div>
-
-//           {/* 7. GROWTH CHART */}
-//           <div className="lg:col-span-2 bg-zinc-900 rounded-[2rem] border border-white/5 overflow-hidden relative min-h-[220px]">
-//              <div className="relative z-10 h-full w-full p-4 flex items-end">
-//                 <GrowthChart trend={data?.trend} />
-//              </div>
-//           </div>
-
-//           {/* 8. NEXT GOAL */}
-//           <div className="lg:col-span-1 bento-card p-8 flex flex-col justify-center">
-//              <div className="flex items-center gap-4 mb-6">
-//                 <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500"><Target weight="duotone" size={24} /></div>
-//                 <div>
-//                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Next Goal</p>
-//                    <h3 className="text-2xl font-black text-gray-900">{nextGoal} Members</h3>
-//                 </div>
-//              </div>
-//              <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden">
-//                 <motion.div initial={{ width: 0 }} animate={{ width: `${progressToGoal}%` }} transition={{ duration: 1.5 }} className="h-full bg-emerald-500 rounded-full" />
-//              </div>
-//           </div>
-
-//           {/* 9. CELL DISTRIBUTION */}
-//           <div className="lg:col-span-1 bento-card p-8 overflow-y-auto">
-//              <h3 className="text-xs font-bold text-gray-900 mb-4 uppercase tracking-widest">Cell Split</h3>
-//              <div className="space-y-4">
-//                 {Object.entries(cellStats).sort(([,a]:any, [,b]:any) => b-a).slice(0, 4).map(([cell, count]: any) => (
-//                   <div key={cell} className="flex justify-between items-center">
-//                     <span className="text-[10px] font-black uppercase text-gray-500">{cell}</span>
-//                     <span className="text-sm font-black text-gray-900">{count}</span>
-//                   </div>
-//                 ))}
-//              </div>
-//           </div>
-
-//           {/* 10. RETENTION FOCUS (Dynamic Risk List) */}
-//           <div className="lg:col-span-2 bento-card p-8 border-rose-100 bg-rose-50/10">
-//              <h3 className="font-bold text-lg text-gray-900 mb-4 flex items-center gap-2">
-//                <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-//                Retention Focus
-//              </h3>
-//              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-//                {data?.riskList?.length > 0 ? data.riskList.slice(0, 4).map((m: any) => (
-//                   <div key={m._id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-rose-100 shadow-sm hover:shadow-md transition-all">
-//                     <div className="flex items-center gap-3">
-//                       <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-[10px] font-black text-rose-600">{m.name.charAt(0)}</div>
-//                       <div>
-//                         <p className="font-bold text-sm text-gray-900 leading-none">{m.name}</p>
-//                         <p className="text-[9px] uppercase font-bold text-gray-400 tracking-wider mt-1">{m.cell} Cell</p>
-//                       </div>
-//                     </div>
-//                     <CaretRight className="text-gray-300" />
-//                   </div>
-//                )) : (
-//                  <div className="col-span-2 text-center py-4 opacity-40 text-xs font-bold uppercase">No risks found</div>
-//                )}
-//              </div>
-//           </div>
-
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }

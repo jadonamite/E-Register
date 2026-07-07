@@ -10,7 +10,7 @@ interface CellStats {
   registered: number;
   attended: number;
   percentage: number;
-  noShows: any[];
+  noShows: NoShow[];
   firstTimers: number;
 }
 
@@ -27,73 +27,85 @@ interface TeamStats {
   registered: number;
   attended: number;
   percentage: number;
+  /** Rank positions gained (+) or lost (-) vs the previous week; null when the team had no previous-week data. */
+  movement: number | null;
   seniorCells: SeniorCellStats[];
 }
 
-interface HierarchyKey {
-  team: string;
-  seniorCell: string;
+interface NoShow {
+  _id: string;
+  name: string;
+  role: string;
   cell: string;
+  seniorCell: string;
+  team: string;
+  /** Consecutive weeks (including this one) with zero attendance, capped at STREAK_WINDOW. */
+  weeksAbsent: number;
 }
 
-// Constants for hierarchy defaults
 const HIERARCHY_DEFAULTS = {
   team: "No Team",
   seniorCell: "Unassigned",
   cell: "Unassigned",
 } as const;
 
-function getStartOfWeek(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  return new Date(d.setDate(diff));
+// Services happen in Lagos (UTC+1, no DST); Vercel runs in UTC. Week
+// boundaries must be anchored to local midnight or attendance marked late
+// Sunday night lands in the wrong week.
+const LAGOS_OFFSET_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEK_MS = 7 * DAY_MS;
+// How far back to look when computing consecutive-absence streaks.
+const STREAK_WINDOW = 8;
+
+/** Monday 00:00 → Sunday 23:59:59.999 of the week containing `now`, in Lagos time. */
+function lagosWeekRange(now: Date): { start: Date; end: Date } {
+  const local = new Date(now.getTime() + LAGOS_OFFSET_MS);
+  const day = local.getUTCDay();
+  const mondayOffset = day === 0 ? 6 : day - 1;
+  const start = new Date(
+    Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() - mondayOffset) -
+      LAGOS_OFFSET_MS
+  );
+  return { start, end: new Date(start.getTime() + WEEK_MS - 1) };
 }
 
-function getEndOfWeek(startDate: Date): Date {
-  const endDate = new Date(startDate);
-  endDate.setDate(endDate.getDate() + 6);
-  endDate.setHours(23, 59, 59, 999);
-  return endDate;
+function parseLagosDate(param: string, endOfDay: boolean): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(param)) return null;
+  const d = new Date(`${param}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}+01:00`);
+  return isNaN(d.getTime()) ? null : d;
 }
 
-function getHierarchyKey(member: any): string {
-  const team = member.team || HIERARCHY_DEFAULTS.team;
-  const seniorCell = member.seniorCell || HIERARCHY_DEFAULTS.seniorCell;
-  const cell = member.cell || HIERARCHY_DEFAULTS.cell;
-  return `${team}::${seniorCell}::${cell}`;
+function hierarchyOf(doc: any) {
+  return {
+    team: doc.team || HIERARCHY_DEFAULTS.team,
+    seniorCell: doc.seniorCell || HIERARCHY_DEFAULTS.seniorCell,
+    cell: doc.cell || HIERARCHY_DEFAULTS.cell,
+  };
 }
 
-function parseHierarchyKey(key: string): HierarchyKey {
-  const [team, seniorCell, cell] = key.split("::");
-  return { team, seniorCell, cell };
-}
-
-function validateDateParams(
-  startDateParam: string | null,
-  endDateParam: string | null
-): { start: Date; end: Date } | { error: string } {
-  if (!startDateParam || !endDateParam) return { start: new Date(0), end: new Date(0) }; // Signals use defaults
-
-  try {
-    const start = new Date(startDateParam);
-    const end = new Date(endDateParam);
-
-    if (isNaN(start.getTime())) {
-      return { error: `Invalid startDate: ${startDateParam}. Expected ISO date (YYYY-MM-DD)` };
-    }
-    if (isNaN(end.getTime())) {
-      return { error: `Invalid endDate: ${endDateParam}. Expected ISO date (YYYY-MM-DD)` };
-    }
-    if (start > end) {
-      return { error: "startDate must be before endDate" };
-    }
-
-    end.setHours(23, 59, 59, 999);
-    return { start, end };
-  } catch (e) {
-    return { error: `Date parsing error: ${(e as Error).message}` };
-  }
+/** Unique members (with hierarchy fields) who attended at least once in the range. */
+function uniqueAttendees(startDate: Date, endDate: Date, serviceType: string | null) {
+  return Member.aggregate([
+    { $match: { status: "Member" } },
+    { $unwind: "$attendance" },
+    {
+      $match: {
+        "attendance.date": { $gte: startDate, $lte: endDate },
+        ...(serviceType && { "attendance.serviceType": serviceType }),
+      },
+    },
+    {
+      $group: {
+        _id: "$_id",
+        name: { $first: "$name" },
+        cell: { $first: "$cell" },
+        seniorCell: { $first: "$seniorCell" },
+        team: { $first: "$team" },
+        role: { $first: "$role" },
+      },
+    },
+  ]);
 }
 
 export async function GET(req: Request) {
@@ -110,271 +122,222 @@ export async function GET(req: Request) {
     const endDateParam = searchParams.get("endDate");
     const serviceType = searchParams.get("serviceType");
 
-    // Validate and parse dates
-    const dateValidation = validateDateParams(startDateParam, endDateParam);
-    if ("error" in dateValidation) {
-      return NextResponse.json({ error: dateValidation.error }, { status: 400 });
-    }
-
     let startDate: Date, endDate: Date;
-
-    if (dateValidation.start.getTime() === 0) {
-      // Use default (this week)
-      const today = new Date();
-      startDate = getStartOfWeek(today);
-      endDate = getEndOfWeek(startDate);
+    if (startDateParam || endDateParam) {
+      if (!startDateParam || !endDateParam) {
+        return NextResponse.json(
+          { error: "startDate and endDate must be provided together (YYYY-MM-DD)" },
+          { status: 400 }
+        );
+      }
+      const start = parseLagosDate(startDateParam, false);
+      const end = parseLagosDate(endDateParam, true);
+      if (!start) {
+        return NextResponse.json(
+          { error: `Invalid startDate: ${startDateParam}. Expected YYYY-MM-DD` },
+          { status: 400 }
+        );
+      }
+      if (!end) {
+        return NextResponse.json(
+          { error: `Invalid endDate: ${endDateParam}. Expected YYYY-MM-DD` },
+          { status: 400 }
+        );
+      }
+      if (start > end) {
+        return NextResponse.json({ error: "startDate must be before endDate" }, { status: 400 });
+      }
+      startDate = start;
+      endDate = end;
     } else {
-      startDate = dateValidation.start;
-      endDate = dateValidation.end;
+      ({ start: startDate, end: endDate } = lagosWeekRange(new Date()));
     }
 
-    // Previous week for comparison
-    const prevWeekEnd = new Date(startDate);
-    prevWeekEnd.setDate(prevWeekEnd.getDate() - 1);
-    const prevWeekStart = getStartOfWeek(prevWeekEnd);
+    const prevWeekEnd = new Date(startDate.getTime() - 1);
+    const prevWeekStart = new Date(startDate.getTime() - WEEK_MS);
+    const streakStart = new Date(endDate.getTime() - STREAK_WINDOW * WEEK_MS + 1);
 
-    // FETCH DATA
-    const allMembers = await Member.find({ status: "Member" }).lean();
+    const [allMembers, thisWeekAttendees, prevWeekAttendees, firstTimersThisWeek, streakHistory] =
+      await Promise.all([
+        Member.find({ status: "Member" }).lean(),
+        uniqueAttendees(startDate, endDate, serviceType),
+        uniqueAttendees(prevWeekStart, prevWeekEnd, serviceType),
+        // First-timers who attended in the range (not by createdAt).
+        Member.aggregate([
+          { $match: { status: "FirstTimer" } },
+          { $unwind: "$attendance" },
+          {
+            $match: {
+              "attendance.date": { $gte: startDate, $lte: endDate },
+              ...(serviceType && { "attendance.serviceType": serviceType }),
+            },
+          },
+          {
+            $group: {
+              _id: "$_id",
+              name: { $first: "$name" },
+              cell: { $first: "$cell" },
+              team: { $first: "$team" },
+              seniorCell: { $first: "$seniorCell" },
+              invitedBy: { $first: "$invitedBy" },
+            },
+          },
+        ]),
+        // Raw check-in dates over the streak window, for consecutive-absence calc.
+        Member.aggregate([
+          { $match: { status: "Member" } },
+          { $unwind: "$attendance" },
+          {
+            $match: {
+              "attendance.date": { $gte: streakStart, $lte: endDate },
+              ...(serviceType && { "attendance.serviceType": serviceType }),
+            },
+          },
+          { $project: { _id: 1, date: "$attendance.date" } },
+        ]),
+      ]);
 
-    const thisWeekAttendance = await Member.aggregate([
-      { $match: { status: "Member" } },
-      { $unwind: "$attendance" },
-      {
-        $match: {
-          "attendance.date": { $gte: startDate, $lte: endDate },
-          ...(serviceType && { "attendance.serviceType": serviceType }),
-        },
-      },
-      {
-        $project: {
-          _id: 1,
-          name: 1,
-          cell: 1,
-          seniorCell: 1,
-          team: 1,
-          role: 1,
-          attendance: 1,
-        },
-      },
-    ]);
+    // Which 7-day blocks (0 = the selected week, counting backwards) each member attended.
+    const attendedBlocks = new Map<string, Set<number>>();
+    streakHistory.forEach((h) => {
+      const block = Math.floor((endDate.getTime() - new Date(h.date).getTime()) / WEEK_MS);
+      const id = h._id.toString();
+      if (!attendedBlocks.has(id)) attendedBlocks.set(id, new Set());
+      attendedBlocks.get(id)!.add(block);
+    });
+    const weeksAbsentFor = (id: string): number => {
+      const blocks = attendedBlocks.get(id);
+      let weeks = 0;
+      while (weeks < STREAK_WINDOW && !blocks?.has(weeks)) weeks++;
+      return weeks;
+    };
 
-    const prevWeekAttendance = await Member.aggregate([
-      { $match: { status: "Member" } },
-      { $unwind: "$attendance" },
-      {
-        $match: {
-          "attendance.date": { $gte: prevWeekStart, $lte: prevWeekEnd },
-          ...(serviceType && { "attendance.serviceType": serviceType }),
-        },
-      },
-      {
-        $project: { _id: 1 },
-      },
-    ]);
-
-    // Fetch first-timers who ATTENDED this week (not by createdAt)
-    const firstTimersThisWeek = await Member.aggregate([
-      { $match: { status: "FirstTimer" } },
-      { $unwind: "$attendance" },
-      {
-        $match: {
-          "attendance.date": { $gte: startDate, $lte: endDate },
-          ...(serviceType && { "attendance.serviceType": serviceType }),
-        },
-      },
-      {
-        $group: {
-          _id: "$_id",
-          name: { $first: "$name" },
-          cell: { $first: "$cell" },
-          team: { $first: "$team" },
-          seniorCell: { $first: "$seniorCell" },
-          invitedBy: { $first: "$invitedBy" },
-        },
-      },
-    ]);
-
-    const thisWeekAttendeeIds = new Set(thisWeekAttendance.map((a) => a._id.toString()));
-    const prevWeekCount = prevWeekAttendance.length;
-    const thisWeekCount = thisWeekAttendance.length;
-    const weekChange = thisWeekCount - prevWeekCount;
-
-    // BUILD HIERARCHY - O(n)
+    // BUILD HIERARCHY — one pass over the roster.
     const teamMap = new Map<string, TeamStats>();
-
     allMembers.forEach((member) => {
-      const teamName = member.team || HIERARCHY_DEFAULTS.team;
-      const seniorCellName = member.seniorCell || HIERARCHY_DEFAULTS.seniorCell;
-      const cellName = member.cell || HIERARCHY_DEFAULTS.cell;
+      const { team: teamName, seniorCell: seniorCellName, cell: cellName } = hierarchyOf(member);
 
-      if (!teamMap.has(teamName)) {
-        teamMap.set(teamName, {
-          name: teamName,
-          registered: 0,
-          attended: 0,
-          percentage: 0,
-          seniorCells: [],
-        });
+      let team = teamMap.get(teamName);
+      if (!team) {
+        team = { name: teamName, registered: 0, attended: 0, percentage: 0, movement: null, seniorCells: [] };
+        teamMap.set(teamName, team);
       }
-
-      const team = teamMap.get(teamName)!;
       team.registered++;
 
       let seniorCell = team.seniorCells.find((sc) => sc.name === seniorCellName);
       if (!seniorCell) {
-        seniorCell = {
-          name: seniorCellName,
-          registered: 0,
-          attended: 0,
-          percentage: 0,
-          cells: [],
-        };
+        seniorCell = { name: seniorCellName, registered: 0, attended: 0, percentage: 0, cells: [] };
         team.seniorCells.push(seniorCell);
       }
       seniorCell.registered++;
 
       let cell = seniorCell.cells.find((c) => c.name === cellName);
       if (!cell) {
-        cell = {
-          name: cellName,
-          registered: 0,
-          attended: 0,
-          percentage: 0,
-          noShows: [],
-          firstTimers: 0,
-        };
+        cell = { name: cellName, registered: 0, attended: 0, percentage: 0, noShows: [], firstTimers: 0 };
         seniorCell.cells.push(cell);
       }
       cell.registered++;
     });
 
-    // COUNT ATTENDANCE - O(m)
-    thisWeekAttendance.forEach((attendance) => {
-      const teamName = attendance.team || HIERARCHY_DEFAULTS.team;
-      const seniorCellName = attendance.seniorCell || HIERARCHY_DEFAULTS.seniorCell;
-      const cellName = attendance.cell || HIERARCHY_DEFAULTS.cell;
-
+    // COUNT ATTENDANCE — one increment per unique attendee.
+    const attendeeIds = new Set(thisWeekAttendees.map((a) => a._id.toString()));
+    thisWeekAttendees.forEach((attendee) => {
+      const { team: teamName, seniorCell: seniorCellName, cell: cellName } = hierarchyOf(attendee);
       const team = teamMap.get(teamName);
-      if (team) {
-        team.attended++;
-        const seniorCell = team.seniorCells.find((sc) => sc.name === seniorCellName);
-        if (seniorCell) {
-          seniorCell.attended++;
-          const cell = seniorCell.cells.find((c) => c.name === cellName);
-          if (cell) {
-            cell.attended++;
-          }
-        }
-      }
+      if (!team) return;
+      team.attended++;
+      const seniorCell = team.seniorCells.find((sc) => sc.name === seniorCellName);
+      if (!seniorCell) return;
+      seniorCell.attended++;
+      const cell = seniorCell.cells.find((c) => c.name === cellName);
+      if (cell) cell.attended++;
     });
 
-    // CALCULATE NO-SHOWS (OPTIMIZED) - O(n + m) instead of O(n*m*t)
-    const membersByCell = new Map<string, any[]>();
-    const attendeesByCell = new Map<string, Set<string>>();
-
-    // Build lookup map of members by cell - O(n)
+    // NO-SHOWS with absence streaks, worst first.
+    const allNoShows: NoShow[] = [];
     allMembers.forEach((member) => {
-      const key = getHierarchyKey(member);
-      if (!membersByCell.has(key)) {
-        membersByCell.set(key, []);
-      }
-      membersByCell.get(key)!.push(member);
-    });
-
-    // Build lookup map of attendees by cell - O(m)
-    thisWeekAttendance.forEach((attendance) => {
-      const key = getHierarchyKey(attendance);
-      if (!attendeesByCell.has(key)) {
-        attendeesByCell.set(key, new Set());
-      }
-      attendeesByCell.get(key)!.add(attendance._id.toString());
-    });
-
-    // Calculate no-shows - O(n)
-    const allNoShows: any[] = [];
-    membersByCell.forEach((members, cellKey) => {
-      const attendees = attendeesByCell.get(cellKey) || new Set();
-      const hierarchy = parseHierarchyKey(cellKey);
-
-      members.forEach((member) => {
-        if (!attendees.has(member._id.toString())) {
-          allNoShows.push({
-            _id: member._id,
-            name: member.name,
-            role: member.role || "Member",
-            cell: hierarchy.cell,
-            seniorCell: hierarchy.seniorCell,
-            team: hierarchy.team,
-          });
-        }
+      const id = member._id.toString();
+      if (attendeeIds.has(id)) return;
+      const hierarchy = hierarchyOf(member);
+      allNoShows.push({
+        _id: member._id.toString(),
+        name: member.name,
+        role: member.role || "Member",
+        ...hierarchy,
+        weeksAbsent: weeksAbsentFor(id),
       });
     });
+    allNoShows.sort((a, b) => b.weeksAbsent - a.weeksAbsent);
 
-    // Populate no-shows back into hierarchy
     allNoShows.forEach((noShow) => {
-      const team = teamMap.get(noShow.team);
-      if (team) {
-        const seniorCell = team.seniorCells.find((sc) => sc.name === noShow.seniorCell);
-        if (seniorCell) {
-          const cell = seniorCell.cells.find((c) => c.name === noShow.cell);
-          if (cell) {
-            cell.noShows.push(noShow);
-          }
-        }
-      }
+      const cell = teamMap
+        .get(noShow.team)
+        ?.seniorCells.find((sc) => sc.name === noShow.seniorCell)
+        ?.cells.find((c) => c.name === noShow.cell);
+      cell?.noShows.push(noShow);
     });
 
-    // COUNT FIRST-TIMERS PER CELL
+    // FIRST-TIMERS PER CELL
     firstTimersThisWeek.forEach((ft) => {
-      const teamName = ft.team || HIERARCHY_DEFAULTS.team;
-      const seniorCellName = ft.seniorCell || HIERARCHY_DEFAULTS.seniorCell;
-      const cellName = ft.cell || HIERARCHY_DEFAULTS.cell;
-
-      const team = teamMap.get(teamName);
-      if (team) {
-        const seniorCell = team.seniorCells.find((sc) => sc.name === seniorCellName);
-        if (seniorCell) {
-          const cell = seniorCell.cells.find((c) => c.name === cellName);
-          if (cell) {
-            cell.firstTimers++;
-          }
-        }
-      }
+      const { team: teamName, seniorCell: seniorCellName, cell: cellName } = hierarchyOf(ft);
+      const cell = teamMap
+        .get(teamName)
+        ?.seniorCells.find((sc) => sc.name === seniorCellName)
+        ?.cells.find((c) => c.name === cellName);
+      if (cell) cell.firstTimers++;
     });
 
-    // CALCULATE PERCENTAGES & SORT
+    // PERCENTAGES & RANKING
+    const pct = (attended: number, registered: number) =>
+      registered > 0 ? Math.round((attended / registered) * 100) : 0;
+
     teamMap.forEach((team) => {
-      team.percentage = team.registered > 0 ? Math.round((team.attended / team.registered) * 100) : 0;
-
+      team.percentage = pct(team.attended, team.registered);
       team.seniorCells.forEach((seniorCell) => {
-        seniorCell.percentage = seniorCell.registered > 0 ? Math.round((seniorCell.attended / seniorCell.registered) * 100) : 0;
-
+        seniorCell.percentage = pct(seniorCell.attended, seniorCell.registered);
         seniorCell.cells.forEach((cell) => {
-          cell.percentage = cell.registered > 0 ? Math.round((cell.attended / cell.registered) * 100) : 0;
+          cell.percentage = pct(cell.attended, cell.registered);
         });
-
         seniorCell.cells.sort((a, b) => b.percentage - a.percentage);
       });
-
       team.seniorCells.sort((a, b) => b.percentage - a.percentage);
     });
 
     const teams = Array.from(teamMap.values()).sort((a, b) => b.percentage - a.percentage);
 
-    // Separate "Unassigned" for clarity (if present)
-    const unassignedTeamIndex = teams.findIndex((t) => t.name === HIERARCHY_DEFAULTS.team);
-    let unassignedTeam = null;
-    if (unassignedTeamIndex !== -1) {
-      unassignedTeam = teams.splice(unassignedTeamIndex, 1)[0];
-    }
+    // RANK MOVEMENT vs previous week (previous-week attendance over the current roster).
+    const prevTeamAttended = new Map<string, number>();
+    prevWeekAttendees.forEach((attendee) => {
+      const teamName = attendee.team || HIERARCHY_DEFAULTS.team;
+      prevTeamAttended.set(teamName, (prevTeamAttended.get(teamName) || 0) + 1);
+    });
+    const prevRanking = teams
+      .map((t) => ({ name: t.name, percentage: pct(prevTeamAttended.get(t.name) || 0, t.registered) }))
+      .sort((a, b) => b.percentage - a.percentage);
+    const prevRank = new Map(prevRanking.map((t, i) => [t.name, i]));
+    teams.forEach((team, currentRank) => {
+      const prev = prevRank.get(team.name);
+      const hadPrevData = (prevTeamAttended.get(team.name) || 0) > 0;
+      team.movement = hadPrevData && prev !== undefined ? prev - currentRank : null;
+    });
+
+    // Separate "Unassigned" for data-quality visibility.
+    const unassignedIndex = teams.findIndex((t) => t.name === HIERARCHY_DEFAULTS.team);
+    const unassignedTeam = unassignedIndex !== -1 ? teams.splice(unassignedIndex, 1)[0] : null;
+
+    const thisWeekCount = thisWeekAttendees.length;
+    const prevWeekCount = prevWeekAttendees.length;
+    const weekChange = thisWeekCount - prevWeekCount;
 
     return NextResponse.json({
       weekRange: {
-        start: startDate.toISOString().split("T")[0],
-        end: endDate.toISOString().split("T")[0],
+        start: new Date(startDate.getTime() + LAGOS_OFFSET_MS).toISOString().split("T")[0],
+        end: new Date(endDate.getTime() + LAGOS_OFFSET_MS).toISOString().split("T")[0],
       },
       summary: {
         totalAttendance: thisWeekCount,
+        attendanceRate: pct(thisWeekCount, allMembers.length),
+        totalRegistered: allMembers.length,
         totalFirstTimers: firstTimersThisWeek.length,
         weekVsLastWeek: {
           thisWeek: thisWeekCount,
@@ -384,11 +347,10 @@ export async function GET(req: Request) {
         },
       },
       teams,
-      unassignedTeam, // Separate section for members without proper hierarchy
+      unassignedTeam,
       noShows: allNoShows,
       firstTimers: firstTimersThisWeek,
       _meta: {
-        queryTime: Date.now(),
         totalMembers: allMembers.length,
         dataQualityIssues: {
           unassignedCount: unassignedTeam?.registered || 0,

@@ -96,50 +96,58 @@ export function PromptnessHierarchy() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-2 mb-4">
-          <TrendUp size={20} className="text-gray-600" />
-          <h3 className="text-lg font-bold text-gray-900">Attendance Promptness by Hierarchy</h3>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
+              <TrendUp size={18} weight="duotone" />
+            </div>
+            <div>
+              <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Promptness</h3>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                Who arrives early, on time, late
+              </p>
+            </div>
+          </div>
+          <div className="text-[9px] text-gray-400 mt-3 flex flex-wrap gap-x-4 gap-y-1 font-bold uppercase tracking-wider">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-blue-500" /> Early · before {data.earlyThreshold}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" /> On-time · {data.earlyThreshold}—{data.lateThreshold}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-red-500" /> Late · after {data.lateThreshold}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-gray-300" /> Absent
+            </span>
+          </div>
         </div>
 
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2 block">
-              Date
-            </label>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative">
+            <CalendarBlank size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold"
+              className="pl-11 pr-4 py-2.5 bg-white border border-zinc-200 rounded-full text-xs font-bold text-stone-700 focus:ring-2 focus:ring-stone-900 focus:border-transparent outline-none hover:border-stone-300 transition-all uppercase tracking-wider cursor-pointer"
             />
           </div>
-          <div className="flex-1">
-            <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2 block">
-              Service
-            </label>
-            <select
-              value={service}
-              onChange={(e) => setService(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold"
-            >
-              <option>Sunday</option>
-              <option>Mid-Week</option>
-            </select>
+          <div className="bg-zinc-100 p-1.5 rounded-full flex gap-1">
+            {["Sunday", "Mid-Week"].map((s) => (
+              <button
+                key={s}
+                onClick={() => setService(s)}
+                className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${
+                  service === s ? "bg-white text-black shadow-sm" : "text-stone-400 hover:text-stone-600"
+                }`}
+              >
+                {s}
+              </button>
+            ))}
           </div>
-        </div>
-
-        <div className="text-[9px] text-gray-500 mt-4 flex gap-4">
-          <span>
-            <span className="font-bold text-gray-700">Early</span> before {data.earlyThreshold}
-          </span>
-          <span>
-            <span className="font-bold text-gray-700">On-time</span> {data.earlyThreshold}—
-            {data.lateThreshold}
-          </span>
-          <span>
-            <span className="font-bold text-gray-700">Late</span> after {data.lateThreshold}
-          </span>
         </div>
       </div>
 
@@ -212,9 +220,9 @@ export function PromptnessHierarchy() {
                   className="bg-gray-50 divide-y"
                 >
                   {team.seniorCells.map((seniorCell) => (
-                    <div key={seniorCell.name}>
+                    <div key={`${team.name}::${seniorCell.name}`}>
                       <button
-                        onClick={() => toggleSeniorCell(seniorCell.name)}
+                        onClick={() => toggleSeniorCell(`${team.name}::${seniorCell.name}`)}
                         className="w-full px-6 py-3 flex items-center justify-between hover:bg-gray-100 transition-colors text-left"
                       >
                         <div className="flex-1 min-w-0">
@@ -256,7 +264,7 @@ export function PromptnessHierarchy() {
                           <CaretDown
                             size={16}
                             className={`text-gray-400 transition-transform ${
-                              expandedSeniorCell === seniorCell.name ? "rotate-180" : ""
+                              expandedSeniorCell === `${team.name}::${seniorCell.name}` ? "rotate-180" : ""
                             }`}
                           />
                         </div>
@@ -264,7 +272,7 @@ export function PromptnessHierarchy() {
 
                       {/* Cells (Collapsed) */}
                       <AnimatePresence>
-                        {expandedSeniorCell === seniorCell.name && (
+                        {expandedSeniorCell === `${team.name}::${seniorCell.name}` && (
                           <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
