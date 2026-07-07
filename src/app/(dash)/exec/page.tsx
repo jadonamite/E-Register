@@ -6,11 +6,11 @@ import { GrowthChart } from "@/components/exec/GrowthChart";
 import { ConnectivityEffect } from "@/components/exec/ConnectivityEffect";
 import { WeeklyAccountability } from "@/components/exec/WeeklyAccountability";
 import { PromptnessHierarchy } from "@/components/exec/PromptnessHierarchy";
-import { motion } from "framer-motion";
 import { Users, Lightning, GearSix, TrendUp } from "@phosphor-icons/react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { LogoutButton } from "@/components/LogoutButton";
+import { CountUp } from "@/components/exec/CountUp";
 
 export default function ExecutiveDashboard() {
   const [data, setData] = useState<any>(null);
@@ -41,7 +41,13 @@ export default function ExecutiveDashboard() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB] p-4 md:p-8 font-unio max-w-[1600px] mx-auto relative overflow-hidden">
+    <div className="min-h-screen p-4 md:p-8 font-unio max-w-[1600px] mx-auto relative overflow-hidden">
+
+      <div className="atmosphere">
+        <div className="blob w-[480px] h-[480px] bg-pink-200 -top-40 -left-40" />
+        <div className="blob w-[420px] h-[420px] bg-amber-100 top-1/3 -right-32" style={{ animationDelay: "-7s" }} />
+        <div className="blob w-[440px] h-[440px] bg-emerald-100 bottom-0 left-1/4" style={{ animationDelay: "-13s" }} />
+      </div>
 
       <ConnectivityEffect />
 
@@ -68,7 +74,7 @@ export default function ExecutiveDashboard() {
         {/* SECONDARY: GROWTH + DATABASE */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mt-6">
 
-          <div className="lg:col-span-3 bg-[#18181b] rounded-[2rem] border border-white/5 overflow-hidden relative min-h-[240px]">
+          <div className="lg:col-span-3 glow-tile overflow-hidden relative min-h-[240px]">
             <div className="absolute inset-0 z-0 opacity-20 bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]" />
             <div className="absolute top-6 left-8 z-20 flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center border border-white/5">
@@ -84,12 +90,12 @@ export default function ExecutiveDashboard() {
             </div>
           </div>
 
-          <div className="bento-card p-8 relative overflow-hidden flex flex-col justify-between group">
-            <div className="absolute -right-8 -top-8 text-gray-50 transition-transform group-hover:scale-110 duration-700">
+          <div className="bento-card p-8 relative overflow-hidden flex flex-col justify-between group bg-[#F0FDFA] border-emerald-100/70">
+            <div className="absolute -right-8 -top-8 text-emerald-900/5 transition-transform group-hover:scale-110 duration-700">
               <Users size={160} weight="fill" />
             </div>
             <div className="relative z-10 flex justify-between items-start">
-              <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400">
+              <div className="w-10 h-10 rounded-full bg-white/70 backdrop-blur flex items-center justify-center text-emerald-500 shadow-sm">
                 <Users size={20} weight="bold" />
               </div>
               <div className="px-3 py-1 bg-[var(--color-unio-emerald)]/10 text-[var(--color-unio-emerald)] rounded-full text-[10px] font-black uppercase tracking-wide flex items-center gap-1">
@@ -97,15 +103,11 @@ export default function ExecutiveDashboard() {
               </div>
             </div>
             <div className="relative z-10 mt-4">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Total Database</h3>
-              <motion.span
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-6xl font-black tracking-tighter text-gray-900 block"
-              >
-                {data?.totalMembers || 0}
-              </motion.span>
-              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-2">
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-900/40 mb-1">Total Database</h3>
+              <span className="text-6xl font-black tracking-tighter text-emerald-950 block">
+                <CountUp value={data?.totalMembers || 0} />
+              </span>
+              <p className="text-[9px] font-bold text-emerald-900/40 uppercase tracking-wider mt-2">
                 {data?.firstTimers || 0} new profiles
               </p>
             </div>

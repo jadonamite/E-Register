@@ -18,6 +18,7 @@ import {
   UsersThree,
 } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "framer-motion";
+import { CountUp } from "./CountUp";
 
 interface NoShow {
   _id: string;
@@ -112,9 +113,17 @@ function performanceText(percentage: number) {
 }
 
 function performanceBar(percentage: number) {
-  if (percentage >= 80) return "bg-emerald-500";
-  if (percentage >= 60) return "bg-amber-400";
-  return "bg-rose-500";
+  if (percentage >= 80) return "bg-gradient-to-r from-emerald-400 to-emerald-500";
+  if (percentage >= 60) return "bg-gradient-to-r from-amber-300 to-amber-400";
+  return "bg-gradient-to-r from-rose-400 to-rose-500";
+}
+
+/** Gold, silver, bronze medals for the podium; neutral below. */
+function rankBadge(rank: number) {
+  if (rank === 0) return "bg-gradient-to-br from-amber-300 to-amber-500 text-white shadow-lg shadow-amber-500/30";
+  if (rank === 1) return "bg-gradient-to-br from-zinc-300 to-zinc-400 text-white shadow-md shadow-zinc-400/30";
+  if (rank === 2) return "bg-gradient-to-br from-orange-300 to-orange-400 text-white shadow-md shadow-orange-400/30";
+  return "bg-zinc-100 text-zinc-500";
 }
 
 function MovementChip({ movement }: { movement: number | null }) {
@@ -263,9 +272,7 @@ export function WeeklyAccountability() {
               >
                 <div className="flex items-center gap-4">
                   <div
-                    className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
-                      rank === 0 ? "bg-gray-900 text-white" : "bg-zinc-100 text-zinc-500"
-                    }`}
+                    className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${rankBadge(rank)}`}
                   >
                     {rank + 1}
                   </div>
@@ -299,7 +306,7 @@ export function WeeklyAccountability() {
                     }}
                     transition={{ duration: 0.8, delay: rank * 0.05 }}
                     className={`h-full rounded-full ${
-                      mode === "strength" ? performanceBar(team.percentage) : "bg-gray-900"
+                      mode === "strength" ? performanceBar(team.percentage) : "bg-gradient-to-r from-gray-700 to-gray-900"
                     }`}
                   />
                 </div>
@@ -451,9 +458,14 @@ export function WeeklyAccountability() {
       ) : (
         <>
           {/* HERO STATS */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+          >
             {/* Attendance hero */}
-            <div className="lg:col-span-2 bento-card bg-[#111] border-none text-white p-8 relative overflow-hidden flex flex-col justify-between min-h-[200px]">
+            <div className="lg:col-span-2 glow-tile text-white p-8 relative overflow-hidden flex flex-col justify-between min-h-[200px]">
               <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#3f3f46_1px,transparent_1px)] [background-size:16px_16px]" />
               <div className="relative z-10 flex items-start justify-between">
                 <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md border border-white/5">
@@ -484,7 +496,7 @@ export function WeeklyAccountability() {
                 ) : (
                   <div className="flex items-baseline gap-3">
                     <span className="text-6xl sm:text-7xl font-black tracking-tighter">
-                      {data.summary.attendanceRate}%
+                      <CountUp value={data.summary.attendanceRate} />%
                     </span>
                     <span className="text-sm font-bold text-white/40">
                       {data.summary.totalAttendance} / {data.summary.totalRegistered} members
@@ -495,9 +507,9 @@ export function WeeklyAccountability() {
             </div>
 
             {/* First timers */}
-            <div className="bento-card p-6 flex flex-col justify-between relative overflow-hidden group">
+            <div className="bento-card p-6 flex flex-col justify-between relative overflow-hidden group bg-[var(--color-pearl-gold)] border-amber-100/70">
               <div className="flex items-start justify-between">
-                <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
+                <div className="w-10 h-10 rounded-full bg-white/70 backdrop-blur flex items-center justify-center text-amber-500 shadow-sm">
                   <UserPlus size={20} weight="bold" />
                 </div>
                 <span className="relative flex h-3 w-3 mt-1">
@@ -506,37 +518,37 @@ export function WeeklyAccountability() {
                 </span>
               </div>
               <div className="mt-4">
-                <p className="text-5xl font-black tracking-tighter text-gray-900">
-                  {data.summary.totalFirstTimers}
+                <p className="text-5xl font-black tracking-tighter text-amber-950">
+                  <CountUp value={data.summary.totalFirstTimers} />
                 </p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-900/40 mt-2">
                   First Timers
                 </p>
               </div>
             </div>
 
             {/* No-shows */}
-            <div className="bento-card p-6 flex flex-col justify-between relative overflow-hidden border-rose-100 bg-rose-50/20">
+            <div className="bento-card p-6 flex flex-col justify-between relative overflow-hidden bg-[var(--color-pearl-pink)] border-rose-100/70">
               <div className="flex items-start justify-between">
-                <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center text-rose-500">
+                <div className="w-10 h-10 rounded-full bg-white/70 backdrop-blur flex items-center justify-center text-rose-500 shadow-sm">
                   <Warning size={20} weight="bold" />
                 </div>
                 {!noDataYet && chronicCount > 0 && (
-                  <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 text-[9px] font-black uppercase tracking-wider">
+                  <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/70 backdrop-blur text-rose-600 text-[9px] font-black uppercase tracking-wider shadow-sm">
                     <Fire size={10} weight="fill" /> {chronicCount} at 3+ wks
                   </span>
                 )}
               </div>
               <div className="mt-4">
-                <p className="text-5xl font-black tracking-tighter text-gray-900">
-                  {noDataYet ? "—" : data.noShows.length}
+                <p className="text-5xl font-black tracking-tighter text-rose-950">
+                  {noDataYet ? "—" : <CountUp value={data.noShows.length} />}
                 </p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-rose-900/40 mt-2">
                   No-Shows
                 </p>
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {noDataYet ? (
             <div className="bento-card p-12 text-center hover:transform-none">
@@ -554,7 +566,13 @@ export function WeeklyAccountability() {
             </div>
           ) : (
             /* LEADERBOARD + FOLLOW-UP RAIL */
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-40px" }}
+              transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+              className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start"
+            >
               {/* Leaderboard carousel */}
               <div className="lg:col-span-3 bento-card p-6 sm:p-8 hover:transform-none">
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
@@ -613,7 +631,7 @@ export function WeeklyAccountability() {
 
               {/* Rail: follow-up + data quality */}
               <div className="space-y-6">
-                <div className="bento-card p-6 border-rose-100 bg-rose-50/10 hover:transform-none">
+                <div className="bento-card p-6 bg-rose-50/60 border-rose-100/70 hover:transform-none">
                   <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-1 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
                     Follow-Up Priority
@@ -661,7 +679,7 @@ export function WeeklyAccountability() {
                 </div>
 
                 {data.unassignedTeam && data.unassignedTeam.registered > 0 && (
-                  <div className="bento-card p-6 border-amber-100 bg-amber-50/20 hover:transform-none">
+                  <div className="bento-card p-6 bg-[var(--color-pearl-gold)] border-amber-100/70 hover:transform-none">
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
                         <Warning size={16} weight="bold" />
@@ -679,7 +697,7 @@ export function WeeklyAccountability() {
                   </div>
                 )}
               </div>
-            </div>
+            </motion.div>
           )}
         </>
       )}

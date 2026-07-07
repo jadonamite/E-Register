@@ -73,9 +73,9 @@ export function PromptnessHierarchy() {
   }
 
   const getPerformanceColor = (onTimePct: number) => {
-    if (onTimePct >= 80) return "bg-emerald-50 border-emerald-200 text-emerald-700";
-    if (onTimePct >= 60) return "bg-amber-50 border-amber-200 text-amber-700";
-    return "bg-red-50 border-red-200 text-red-700";
+    if (onTimePct >= 80) return "bg-emerald-50 text-emerald-700";
+    if (onTimePct >= 60) return "bg-amber-50 text-amber-700";
+    return "bg-rose-50 text-rose-700";
   };
 
   const getBarColor = (value: number, total: number) => {
@@ -111,16 +111,16 @@ export function PromptnessHierarchy() {
           </div>
           <div className="text-[9px] text-gray-400 mt-3 flex flex-wrap gap-x-4 gap-y-1 font-bold uppercase tracking-wider">
             <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-blue-500" /> Early · before {data.earlyThreshold}
+              <span className="w-2 h-2 rounded-full bg-sky-400" /> Early · before {data.earlyThreshold}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" /> On-time · {data.earlyThreshold}—{data.lateThreshold}
+              <span className="w-2 h-2 rounded-full bg-emerald-400" /> On-time · {data.earlyThreshold}—{data.lateThreshold}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-red-500" /> Late · after {data.lateThreshold}
+              <span className="w-2 h-2 rounded-full bg-rose-400" /> Late · after {data.lateThreshold}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-gray-300" /> Absent
+              <span className="w-2 h-2 rounded-full bg-zinc-200" /> Absent
             </span>
           </div>
         </div>
@@ -154,14 +154,11 @@ export function PromptnessHierarchy() {
       {/* Teams */}
       <div className="space-y-3">
         {data.teams.map((team) => (
-          <div key={team.name} className="border border-zinc-200 rounded-xl overflow-hidden">
+          <div key={team.name} className="border border-zinc-100 rounded-3xl overflow-hidden bg-white">
             {/* Team Header */}
             <button
               onClick={() => toggleTeam(team.name)}
-              className={cn(
-                "w-full px-6 py-4 flex items-center justify-between transition-colors border-b",
-                getPerformanceColor(team.onTimePct)
-              )}
+              className="w-full px-6 py-4 flex items-center justify-between transition-colors hover:bg-zinc-50/80"
             >
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="text-left">
@@ -171,38 +168,38 @@ export function PromptnessHierarchy() {
               </div>
 
               <div className="flex items-center gap-4 shrink-0">
-                <div className="flex h-6 rounded-lg overflow-hidden bg-white/50 w-32">
+                <div className="flex h-6 rounded-full overflow-hidden bg-zinc-100 w-32">
                   {team.early > 0 && (
                     <div
                       style={{ width: `${(team.early / team.total) * 100}%` }}
-                      className="bg-blue-500"
+                      className="bg-sky-400"
                       title={`${team.early} early (${team.earlyPct}%)`}
                     />
                   )}
                   {team.onTime > 0 && (
                     <div
                       style={{ width: `${(team.onTime / team.total) * 100}%` }}
-                      className="bg-emerald-500"
+                      className="bg-emerald-400"
                       title={`${team.onTime} on-time (${team.onTimePct}%)`}
                     />
                   )}
                   {team.late > 0 && (
                     <div
                       style={{ width: `${(team.late / team.total) * 100}%` }}
-                      className="bg-red-500"
+                      className="bg-rose-400"
                       title={`${team.late} late (${team.latePct}%)`}
                     />
                   )}
                   {team.absent > 0 && (
                     <div
                       style={{ width: `${(team.absent / team.total) * 100}%` }}
-                      className="bg-gray-300"
+                      className="bg-zinc-200"
                       title={`${team.absent} absent (${team.absentPct}%)`}
                     />
                   )}
                 </div>
 
-                <div className="text-2xl font-black text-gray-900 w-12 text-right">{team.onTimePct}%</div>
+                <div className={cn("px-3 py-1 rounded-full text-sm font-black", getPerformanceColor(team.onTimePct))}>{team.onTimePct}%</div>
                 <CaretDown
                   size={20}
                   className={`text-gray-400 transition-transform ${expandedTeam === team.name ? "rotate-180" : ""}`}
@@ -233,29 +230,29 @@ export function PromptnessHierarchy() {
                         </div>
 
                         <div className="flex items-center gap-3 shrink-0">
-                          <div className="flex h-5 rounded overflow-hidden bg-white/50 w-24">
+                          <div className="flex h-5 rounded-full overflow-hidden bg-zinc-100 w-24">
                             {seniorCell.early > 0 && (
                               <div
                                 style={{ width: `${(seniorCell.early / seniorCell.total) * 100}%` }}
-                                className="bg-blue-500"
+                                className="bg-sky-400"
                               />
                             )}
                             {seniorCell.onTime > 0 && (
                               <div
                                 style={{ width: `${(seniorCell.onTime / seniorCell.total) * 100}%` }}
-                                className="bg-emerald-500"
+                                className="bg-emerald-400"
                               />
                             )}
                             {seniorCell.late > 0 && (
                               <div
                                 style={{ width: `${(seniorCell.late / seniorCell.total) * 100}%` }}
-                                className="bg-red-500"
+                                className="bg-rose-400"
                               />
                             )}
                             {seniorCell.absent > 0 && (
                               <div
                                 style={{ width: `${(seniorCell.absent / seniorCell.total) * 100}%` }}
-                                className="bg-gray-300"
+                                className="bg-zinc-200"
                               />
                             )}
                           </div>
@@ -285,48 +282,48 @@ export function PromptnessHierarchy() {
                                   <h6 className="font-bold text-xs text-gray-900">{cell.name}</h6>
                                   <div className="text-[9px] text-gray-600 flex gap-2 mt-1">
                                     <span className="flex items-center gap-1">
-                                      <span className="w-2 h-2 rounded-full bg-blue-500" />
+                                      <span className="w-2 h-2 rounded-full bg-sky-400" />
                                       {cell.early}
                                     </span>
                                     <span className="flex items-center gap-1">
-                                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
                                       {cell.onTime}
                                     </span>
                                     <span className="flex items-center gap-1">
-                                      <span className="w-2 h-2 rounded-full bg-red-500" />
+                                      <span className="w-2 h-2 rounded-full bg-rose-400" />
                                       {cell.late}
                                     </span>
                                     <span className="flex items-center gap-1">
-                                      <span className="w-2 h-2 rounded-full bg-gray-300" />
+                                      <span className="w-2 h-2 rounded-full bg-zinc-200" />
                                       {cell.absent}
                                     </span>
                                   </div>
                                 </div>
 
                                 <div className="flex items-center gap-3 shrink-0">
-                                  <div className="flex h-4 rounded overflow-hidden bg-gray-100 w-20">
+                                  <div className="flex h-4 rounded-full overflow-hidden bg-zinc-100 w-20">
                                     {cell.early > 0 && (
                                       <div
                                         style={{ width: `${(cell.early / cell.total) * 100}%` }}
-                                        className="bg-blue-500"
+                                        className="bg-sky-400"
                                       />
                                     )}
                                     {cell.onTime > 0 && (
                                       <div
                                         style={{ width: `${(cell.onTime / cell.total) * 100}%` }}
-                                        className="bg-emerald-500"
+                                        className="bg-emerald-400"
                                       />
                                     )}
                                     {cell.late > 0 && (
                                       <div
                                         style={{ width: `${(cell.late / cell.total) * 100}%` }}
-                                        className="bg-red-500"
+                                        className="bg-rose-400"
                                       />
                                     )}
                                     {cell.absent > 0 && (
                                       <div
                                         style={{ width: `${(cell.absent / cell.total) * 100}%` }}
-                                        className="bg-gray-300"
+                                        className="bg-zinc-200"
                                       />
                                     )}
                                   </div>
