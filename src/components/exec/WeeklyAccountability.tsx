@@ -168,7 +168,7 @@ export function WeeklyAccountability() {
         <div className="bg-white border border-zinc-100 rounded-2xl p-6">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No-Shows</span>
-            <AlertCircle size={18} className="text-red-500" />
+            <Warning size={18} className="text-red-500" />
           </div>
           <div className="text-4xl font-black text-gray-900">{data.noShows.length}</div>
           <div className="text-xs font-bold text-gray-400 mt-2">Follow-up needed</div>
