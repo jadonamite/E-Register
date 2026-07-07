@@ -14,6 +14,7 @@ import {
   Trophy,
   Pulse,
   Fire,
+  CalendarBlank,
 } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -78,18 +79,22 @@ interface WeeklyData {
   };
 }
 
-const SERVICES = ["All", "Sunday", "Mid-Week"] as const;
-type Service = (typeof SERVICES)[number];
+// The church tracks two services; metrics are always per service so
+// percentages stay meaningful.
+const SERVICES = [
+  { label: "Sunday", value: "Sunday" },
+  { label: "Wednesday", value: "Mid-Week" },
+] as const;
+type ServiceValue = (typeof SERVICES)[number]["value"];
 
-/** Monday–Sunday of the week `offset` weeks away from the current one, in local time. */
+/** Sunday–Saturday of the week `offset` weeks away — the week opens with the Sunday service. */
 function weekRange(offset: number): { start: Date; end: Date } {
   const now = new Date();
-  const day = now.getDay();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1) + offset * 7);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  return { start: monday, end: sunday };
+  const start = new Date(now);
+  start.setDate(now.getDate() - now.getDay() + offset * 7);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return { start, end };
 }
 
 function performanceText(percentage: number) {
@@ -150,11 +155,12 @@ export function WeeklyAccountability() {
   const [data, setData] = useState<WeeklyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [weekOffset, setWeekOffset] = useState(0);
-  const [service, setService] = useState<Service>("All");
+  const [service, setService] = useState<ServiceValue>("Sunday");
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
   const [expandedSeniorCell, setExpandedSeniorCell] = useState<string | null>(null);
 
   const range = useMemo(() => weekRange(weekOffset), [weekOffset]);
+  const serviceLabel = SERVICES.find((s) => s.value === service)!.label;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -164,8 +170,8 @@ export function WeeklyAccountability() {
         const params = new URLSearchParams({
           startDate: format(range.start, "yyyy-MM-dd"),
           endDate: format(range.end, "yyyy-MM-dd"),
+          serviceType: service,
         });
-        if (service !== "All") params.set("serviceType", service);
         const res = await fetch(`/api/weekly-accountability?${params}`, {
           signal: controller.signal,
         });
@@ -181,15 +187,31 @@ export function WeeklyAccountability() {
   }, [range, service]);
 
   const weekLabel =
-    weekOffset === 0
-      ? "This Week"
-      : weekOffset === -1
-        ? "Last Week"
-        : `${format(range.start, "MMM d")} – ${format(range.end, "MMM d")}`;
+    weekOffset === 0 ? "This Week" : weekOffset === -1 ? "Last Week" : `Week of ${format(range.start, "MMM d")}`;
+
+  // No check-ins for this service+week yet: the service likely hasn't held,
+  // so 0% / everyone-a-no-show would be misleading noise.
+  const noDataYet = !!data && data.summary.totalAttendance === 0;
 
   const chronicCount = data?.noShows.filter((n) => n.weeksAbsent >= 3).length ?? 0;
   const trend = data?.summary.weekVsLastWeek;
   const trendUp = (trend?.change ?? 0) >= 0;
+
+  const serviceToggle = (
+    <div className="bg-zinc-100 p-1.5 rounded-full flex gap-1">
+      {SERVICES.map((s) => (
+        <button
+          key={s.value}
+          onClick={() => setService(s.value)}
+          className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${
+            service === s.value ? "bg-white text-black shadow-sm" : "text-stone-400 hover:text-stone-600"
+          }`}
+        >
+          {s.label}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -200,45 +222,29 @@ export function WeeklyAccountability() {
             Weekly Accountability
           </h2>
           <p className="text-[10px] uppercase font-black text-gray-400 tracking-[0.3em] mt-1">
-            {format(range.start, "MMM d")} — {format(range.end, "MMM d, yyyy")}
+            {serviceLabel} service · {format(range.start, "EEE MMM d")} — {format(range.end, "EEE MMM d")}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="glass-frosted rounded-full flex items-center p-1.5">
-            <button
-              onClick={() => setWeekOffset((w) => w - 1)}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-900 hover:bg-white transition-all"
-              aria-label="Previous week"
-            >
-              <CaretLeft size={16} weight="bold" />
-            </button>
-            <span className="px-3 min-w-[110px] text-center text-[10px] font-black uppercase tracking-widest text-gray-700">
-              {weekLabel}
-            </span>
-            <button
-              onClick={() => setWeekOffset((w) => Math.min(0, w + 1))}
-              disabled={weekOffset === 0}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-900 hover:bg-white transition-all disabled:opacity-20 disabled:hover:bg-transparent"
-              aria-label="Next week"
-            >
-              <CaretRight size={16} weight="bold" />
-            </button>
-          </div>
-
-          <div className="bg-zinc-100 p-1.5 rounded-full flex gap-1">
-            {SERVICES.map((s) => (
-              <button
-                key={s}
-                onClick={() => setService(s)}
-                className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${
-                  service === s ? "bg-white text-black shadow-sm" : "text-stone-400 hover:text-stone-600"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
+        <div className="glass-frosted rounded-full flex items-center p-1.5">
+          <button
+            onClick={() => setWeekOffset((w) => w - 1)}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-900 hover:bg-white transition-all"
+            aria-label="Previous week"
+          >
+            <CaretLeft size={16} weight="bold" />
+          </button>
+          <span className="px-3 min-w-[110px] text-center text-[10px] font-black uppercase tracking-widest text-gray-700">
+            {weekLabel}
+          </span>
+          <button
+            onClick={() => setWeekOffset((w) => Math.min(0, w + 1))}
+            disabled={weekOffset === 0}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-900 hover:bg-white transition-all disabled:opacity-20 disabled:hover:bg-transparent"
+            aria-label="Next week"
+          >
+            <CaretRight size={16} weight="bold" />
+          </button>
         </div>
       </div>
 
@@ -264,7 +270,7 @@ export function WeeklyAccountability() {
                 <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md border border-white/5">
                   <Pulse size={20} className="text-emerald-400" />
                 </div>
-                {trend && (
+                {!noDataYet && trend && trend.lastWeek > 0 && (
                   <div
                     className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wide flex items-center gap-1 ${
                       trendUp ? "bg-emerald-400/10 text-emerald-300" : "bg-rose-400/10 text-rose-300"
@@ -275,20 +281,27 @@ export function WeeklyAccountability() {
                   </div>
                 )}
               </div>
-              <div className="relative z-10 mt-4 flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1">
-                    Weekly Attendance
-                  </p>
+              <div className="relative z-10 mt-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1">
+                  {serviceLabel} Attendance
+                </p>
+                {noDataYet ? (
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-6xl sm:text-7xl font-black tracking-tighter text-white/20">—</span>
+                    <span className="text-xs font-bold text-white/40 uppercase tracking-widest">
+                      Not marked yet
+                    </span>
+                  </div>
+                ) : (
                   <div className="flex items-baseline gap-3">
                     <span className="text-6xl sm:text-7xl font-black tracking-tighter">
                       {data.summary.attendanceRate}%
                     </span>
                     <span className="text-sm font-bold text-white/40">
-                      {data.summary.totalAttendance} / {data.summary.totalRegistered}
+                      {data.summary.totalAttendance} / {data.summary.totalRegistered} members
                     </span>
                   </div>
-                </div>
+                )}
               </div>
             </div>
 
@@ -319,14 +332,16 @@ export function WeeklyAccountability() {
                 <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center text-rose-500">
                   <Warning size={20} weight="bold" />
                 </div>
-                {chronicCount > 0 && (
+                {!noDataYet && chronicCount > 0 && (
                   <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 text-[9px] font-black uppercase tracking-wider">
                     <Fire size={10} weight="fill" /> {chronicCount} at 3+ wks
                   </span>
                 )}
               </div>
               <div className="mt-4">
-                <p className="text-5xl font-black tracking-tighter text-gray-900">{data.noShows.length}</p>
+                <p className="text-5xl font-black tracking-tighter text-gray-900">
+                  {noDataYet ? "—" : data.noShows.length}
+                </p>
                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-2">
                   No-Shows
                 </p>
@@ -334,31 +349,42 @@ export function WeeklyAccountability() {
             </div>
           </div>
 
-          {/* LEADERBOARD + FOLLOW-UP RAIL */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-            {/* Leaderboard */}
-            <div className="lg:col-span-3 bento-card p-6 sm:p-8 hover:transform-none">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center text-amber-500">
-                  <Trophy size={18} weight="duotone" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">
-                    Team Leaderboard
-                  </h3>
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
-                    Ranked by attendance — tap to drill down
-                  </p>
-                </div>
+          {noDataYet ? (
+            <div className="bento-card p-12 text-center hover:transform-none">
+              <div className="w-14 h-14 rounded-full bg-zinc-50 flex items-center justify-center mx-auto mb-4 text-zinc-300">
+                <CalendarBlank size={26} weight="duotone" />
               </div>
-
-              {data.teams.length === 0 ? (
-                <div className="text-center py-16 opacity-30">
-                  <p className="text-xs font-black uppercase tracking-widest text-gray-600">
-                    No attendance recorded this week
-                  </p>
+              <p className="text-sm font-black text-gray-900 uppercase tracking-widest">
+                No {serviceLabel} attendance this week yet
+              </p>
+              <p className="text-xs font-bold text-gray-400 mt-2 max-w-md mx-auto">
+                Rankings and follow-ups appear here once marking starts. Use the week arrows above to
+                review a previous week, or switch service below.
+              </p>
+              <div className="flex justify-center mt-6">{serviceToggle}</div>
+            </div>
+          ) : (
+            /* LEADERBOARD + FOLLOW-UP RAIL */
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+              {/* Leaderboard */}
+              <div className="lg:col-span-3 bento-card p-6 sm:p-8 hover:transform-none">
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center text-amber-500">
+                      <Trophy size={18} weight="duotone" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">
+                        Team Leaderboard
+                      </h3>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                        {serviceLabel} service · tap a team to drill down
+                      </p>
+                    </div>
+                  </div>
+                  {serviceToggle}
                 </div>
-              ) : (
+
                 <div className="space-y-3">
                   {data.teams.map((team, rank) => (
                     <div
@@ -389,7 +415,7 @@ export function WeeklyAccountability() {
                               <MovementChip movement={team.movement} />
                             </div>
                             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">
-                              {team.attended} / {team.registered} attended
+                              {team.attended} of {team.registered} attended
                             </p>
                           </div>
                           <div
@@ -439,7 +465,7 @@ export function WeeklyAccountability() {
                                         {seniorCell.name}
                                       </h5>
                                       <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
-                                        {seniorCell.attended} / {seniorCell.registered}
+                                        {seniorCell.attended} of {seniorCell.registered}
                                       </p>
                                     </div>
                                     <div className="flex items-center gap-3 shrink-0">
@@ -473,7 +499,7 @@ export function WeeklyAccountability() {
                                                   {cell.name}
                                                 </h6>
                                                 <p className="text-[9px] font-bold text-gray-400">
-                                                  {cell.attended}/{cell.registered} attended
+                                                  {cell.attended} of {cell.registered} attended
                                                   {cell.firstTimers > 0 &&
                                                     ` · ${cell.firstTimers} first-timer${cell.firstTimers > 1 ? "s" : ""}`}
                                                 </p>
@@ -515,78 +541,78 @@ export function WeeklyAccountability() {
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
+              </div>
 
-            {/* Rail: follow-up + data quality */}
-            <div className="space-y-6">
-              <div className="bento-card p-6 border-rose-100 bg-rose-50/10 hover:transform-none">
-                <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-1 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                  Follow-Up Priority
-                </h3>
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-4">
-                  Longest absence streaks first
-                </p>
+              {/* Rail: follow-up + data quality */}
+              <div className="space-y-6">
+                <div className="bento-card p-6 border-rose-100 bg-rose-50/10 hover:transform-none">
+                  <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-1 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                    Follow-Up Priority
+                  </h3>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-4">
+                    Longest absence streaks first
+                  </p>
 
-                {data.noShows.length === 0 ? (
-                  <div className="text-center py-6 opacity-40">
-                    <p className="text-[10px] font-black uppercase tracking-widest">
-                      Full attendance — all clear
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {data.noShows.slice(0, 8).map((member) => (
-                      <div
-                        key={member._id}
-                        className="flex items-center justify-between gap-2 p-3 bg-white rounded-2xl border border-rose-100/60 shadow-sm"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-[10px] font-black text-rose-600 shrink-0">
-                            {member.name.charAt(0)}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-bold text-xs text-gray-900 truncate leading-none">
-                              {member.name}
-                            </p>
-                            <p className="text-[8px] uppercase font-bold text-gray-400 tracking-wider mt-1 truncate">
-                              {member.cell}
-                            </p>
-                          </div>
-                        </div>
-                        <StreakBadge weeks={member.weeksAbsent} />
-                      </div>
-                    ))}
-                    {data.noShows.length > 8 && (
-                      <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest text-center pt-2">
-                        +{data.noShows.length - 8} more to follow up
+                  {data.noShows.length === 0 ? (
+                    <div className="text-center py-6 opacity-40">
+                      <p className="text-[10px] font-black uppercase tracking-widest">
+                        Full attendance — all clear
                       </p>
-                    )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {data.noShows.slice(0, 8).map((member) => (
+                        <div
+                          key={member._id}
+                          className="flex items-center justify-between gap-2 p-3 bg-white rounded-2xl border border-rose-100/60 shadow-sm"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-[10px] font-black text-rose-600 shrink-0">
+                              {member.name.charAt(0)}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-bold text-xs text-gray-900 truncate leading-none">
+                                {member.name}
+                              </p>
+                              <p className="text-[8px] uppercase font-bold text-gray-400 tracking-wider mt-1 truncate">
+                                {member.cell}
+                              </p>
+                            </div>
+                          </div>
+                          <StreakBadge weeks={member.weeksAbsent} />
+                        </div>
+                      ))}
+                      {data.noShows.length > 8 && (
+                        <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest text-center pt-2">
+                          +{data.noShows.length - 8} more to follow up
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {data.unassignedTeam && data.unassignedTeam.registered > 0 && (
+                  <div className="bento-card p-6 border-amber-100 bg-amber-50/20 hover:transform-none">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                        <Warning size={16} weight="bold" />
+                      </div>
+                      <h3 className="text-xs font-black text-amber-900 uppercase tracking-widest">
+                        Data Quality
+                      </h3>
+                    </div>
+                    <p className="text-xs font-medium text-amber-800 leading-relaxed">
+                      {data._meta?.dataQualityIssues?.unassignedMessage}
+                    </p>
+                    <p className="text-[9px] font-bold text-amber-600/70 uppercase tracking-wider mt-3">
+                      Assign them a team, senior cell & cell to include them in rankings
+                    </p>
                   </div>
                 )}
               </div>
-
-              {data.unassignedTeam && data.unassignedTeam.registered > 0 && (
-                <div className="bento-card p-6 border-amber-100 bg-amber-50/20 hover:transform-none">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
-                      <Warning size={16} weight="bold" />
-                    </div>
-                    <h3 className="text-xs font-black text-amber-900 uppercase tracking-widest">
-                      Data Quality
-                    </h3>
-                  </div>
-                  <p className="text-xs font-medium text-amber-800 leading-relaxed">
-                    {data._meta?.dataQualityIssues?.unassignedMessage}
-                  </p>
-                  <p className="text-[9px] font-bold text-amber-600/70 uppercase tracking-wider mt-3">
-                    Assign them a team, senior cell & cell to include them in rankings
-                  </p>
-                </div>
-              )}
             </div>
-          </div>
+          )}
         </>
       )}
     </div>

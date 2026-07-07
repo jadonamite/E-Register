@@ -58,13 +58,15 @@ const WEEK_MS = 7 * DAY_MS;
 // How far back to look when computing consecutive-absence streaks.
 const STREAK_WINDOW = 8;
 
-/** Monday 00:00 → Sunday 23:59:59.999 of the week containing `now`, in Lagos time. */
+/**
+ * Sunday 00:00 → Saturday 23:59:59.999 of the week containing `now`, in Lagos
+ * time. The church week opens with the Sunday service, so weeks start on
+ * Sunday — otherwise a Monday view shows 0% until midweek.
+ */
 function lagosWeekRange(now: Date): { start: Date; end: Date } {
   const local = new Date(now.getTime() + LAGOS_OFFSET_MS);
-  const day = local.getUTCDay();
-  const mondayOffset = day === 0 ? 6 : day - 1;
   const start = new Date(
-    Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() - mondayOffset) -
+    Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() - local.getUTCDay()) -
       LAGOS_OFFSET_MS
   );
   return { start, end: new Date(start.getTime() + WEEK_MS - 1) };
