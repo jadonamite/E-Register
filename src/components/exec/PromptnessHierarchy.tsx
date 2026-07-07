@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { TrendUp, CalendarBlank, ChevronDown } from "@phosphor-icons/react";
+import { TrendUp, CalendarBlank, CaretDown } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -195,7 +195,7 @@ export function PromptnessHierarchy() {
                 </div>
 
                 <div className="text-2xl font-black text-gray-900 w-12 text-right">{team.onTimePct}%</div>
-                <ChevronDown
+                <CaretDown
                   size={20}
                   className={`text-gray-400 transition-transform ${expandedTeam === team.name ? "rotate-180" : ""}`}
                 />
@@ -253,7 +253,7 @@ export function PromptnessHierarchy() {
                           </div>
 
                           <div className="text-lg font-black text-gray-900 w-10 text-right">{seniorCell.onTimePct}%</div>
-                          <ChevronDown
+                          <CaretDown
                             size={16}
                             className={`text-gray-400 transition-transform ${
                               expandedSeniorCell === seniorCell.name ? "rotate-180" : ""

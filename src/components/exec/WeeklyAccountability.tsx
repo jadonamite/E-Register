@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { ChevronDown, Users, UserPlus, AlertCircle } from "@phosphor-icons/react";
+import { CaretDown, Users, UserPlus, Warning } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -220,7 +220,7 @@ export function WeeklyAccountability() {
                 <div className={`px-3 py-1 rounded-full text-sm font-black ${getPerformanceColor(team.percentage)}`}>
                   {team.percentage}%
                 </div>
-                <ChevronDown
+                <CaretDown
                   size={20}
                   className={`text-gray-400 transition-transform ${expandedTeam === team.name ? "rotate-180" : ""}`}
                 />
@@ -252,7 +252,7 @@ export function WeeklyAccountability() {
                           <div className={`px-2 py-0.5 rounded text-xs font-bold ${getPerformanceColor(seniorCell.percentage)}`}>
                             {seniorCell.percentage}%
                           </div>
-                          <ChevronDown
+                          <CaretDown
                             size={16}
                             className={`text-gray-400 transition-transform ${expandedSeniorCell === seniorCell.name ? "rotate-180" : ""}`}
                           />
