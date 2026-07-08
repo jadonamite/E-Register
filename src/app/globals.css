@@ -10,13 +10,13 @@
   --color-pearl-gold: #fff8e1;
   --color-unio-emerald: #10b981;
 
-  /* Candy tiles — saturated fills carrying dark ink text */
-  --color-butter: #FFE9A8;
-  --color-bubblegum: #FFD3E4;
-  --color-matcha: #D9F2DC;
+  /* Candy tiles — muted intelly hues carrying dark ink text */
+  --color-butter: #EFC75E;
+  --color-bubblegum: #F5C4DA;
+  --color-matcha: #CBD3A0;
   
   /* Backgrounds & Text */
-  --color-background: #F9FAFB;
+  --color-background: #F5F0E8;
   --color-foreground: #111827;
 
   /* Typography */
@@ -79,14 +79,15 @@
     0 24px 60px -16px rgba(2, 6, 23, 0.55);
 }
 
-/* Borderless candy card — colored soft shadow supplied per card via Tailwind. */
+/* Flat candy card — intelly style: depth from color contrast, never shadows. */
 @utility candy-card {
   border: none;
   border-radius: 2rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: none;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
-    transform: translateY(-4px);
+    transform: translateY(-2px);
   }
 }
 
@@ -120,7 +121,7 @@
   position: fixed;
   inset: 0;
   z-index: -1;
-  background: #f9fafb;
+  background: #F5F0E8;
   overflow: hidden;
 }
 

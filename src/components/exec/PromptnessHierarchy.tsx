@@ -45,7 +45,7 @@ function onTimeChip(pct: number) {
 function DotChip({ color, label, value }: { color: string; label: string; value: number }) {
   return (
     <span
-      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white text-[9px] font-black uppercase tracking-wider text-gray-500 shadow-sm"
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white text-[9px] font-black uppercase tracking-wider text-gray-500"
       title={`${value} ${label}`}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${color}`} />
@@ -103,9 +103,7 @@ export function PromptnessHierarchy() {
   const header = (
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex items-center gap-3">
-        <div className="w-11 h-11 rounded-2xl bg-emerald-50 flex items-center justify-center">
-          <Alarm size={24} weight="duotone" className="text-emerald-500" />
-        </div>
+        <Alarm size={26} weight="fill" className="text-gray-900" />
         <div>
           <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Promptness</h3>
           <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
@@ -176,7 +174,7 @@ export function PromptnessHierarchy() {
 
       <div className="space-y-3">
         {data.teams.map((team) => (
-          <div key={team.name} className="bg-[#F7F6F3] rounded-3xl overflow-hidden">
+          <div key={team.name} className="bg-[#F3EEE3] rounded-3xl overflow-hidden">
             <motion.button
               whileTap={{ scale: 0.985 }}
               onClick={() => setExpandedTeam(expandedTeam === team.name ? null : team.name)}
@@ -232,7 +230,7 @@ export function PromptnessHierarchy() {
                           onClick={() =>
                             setExpandedSeniorCell(expandedSeniorCell === scKey ? null : scKey)
                           }
-                          className="w-full pl-8 pr-6 py-3 flex items-center justify-between hover:bg-[#FCFBF9] transition-colors text-left"
+                          className="w-full pl-8 pr-6 py-3 flex items-center justify-between hover:bg-[#FAF7F0] transition-colors text-left"
                         >
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <div
@@ -272,7 +270,7 @@ export function PromptnessHierarchy() {
                               initial={{ opacity: 0, height: 0 }}
                               animate={{ opacity: 1, height: "auto" }}
                               exit={{ opacity: 0, height: 0 }}
-                              className="bg-[#FCFBF9]"
+                              className="bg-[#FAF7F0]"
                             >
                               {seniorCell.cells.map((cell) => (
                                 <div key={cell.name} className="pl-14 pr-6 py-3 flex items-center justify-between gap-3">

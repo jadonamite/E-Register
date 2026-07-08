@@ -26,7 +26,7 @@ export default function ExecutiveDashboard() {
   }, []);
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB]">
+    <div className="min-h-screen flex items-center justify-center bg-[#F5F0E8]">
       <div className="animate-pulse flex flex-col items-center gap-4">
         <Logo />
         <p className="text-[10px] font-black tracking-widest opacity-30 uppercase font-unio">Loading Command Center...</p>
@@ -67,7 +67,7 @@ export default function ExecutiveDashboard() {
 
         {/* PROMPTNESS */}
         <div className="mt-6">
-          <div className="candy-card bg-white shadow-[0_28px_56px_-24px_rgba(0,0,0,0.16)] p-6 sm:p-8">
+          <div className="candy-card bg-white p-6 sm:p-8">
             <PromptnessHierarchy />
           </div>
         </div>

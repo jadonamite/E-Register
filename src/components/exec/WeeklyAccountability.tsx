@@ -18,6 +18,7 @@ import {
   UsersThree,
   Lightning,
   ChartLineUp,
+  HeartBreak,
 } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CountUp } from "./CountUp";
@@ -133,12 +134,12 @@ function performanceBar(percentage: number) {
 /** Gold, silver, bronze medals for the podium; neutral below. */
 function rankBadge(rank: number) {
   if (rank === 0)
-    return "bg-gradient-to-br from-amber-300 to-amber-500 text-white shadow-lg shadow-amber-500/40 ring-4 ring-amber-200/60";
+    return "bg-gradient-to-br from-amber-300 to-amber-500 text-white ring-4 ring-amber-200/70";
   if (rank === 1)
-    return "bg-gradient-to-br from-zinc-300 to-zinc-400 text-white shadow-md shadow-zinc-400/40 ring-4 ring-zinc-200/60";
+    return "bg-gradient-to-br from-zinc-300 to-zinc-400 text-white ring-4 ring-zinc-200/70";
   if (rank === 2)
-    return "bg-gradient-to-br from-orange-300 to-orange-400 text-white shadow-md shadow-orange-400/40 ring-4 ring-orange-200/60";
-  return "bg-white text-zinc-500 shadow-sm";
+    return "bg-gradient-to-br from-orange-300 to-orange-400 text-white ring-4 ring-orange-200/70";
+  return "bg-white text-zinc-500";
 }
 
 // Deterministic hue per team/cell name so monograms stay consistent everywhere.
@@ -263,7 +264,7 @@ export function WeeklyAccountability({ trend }: { trend?: { date: string; count:
   const trendUp = (trendWoW?.change ?? 0) >= 0;
 
   const serviceToggle = (
-    <div className="bg-white p-1.5 rounded-full flex gap-1 shadow-[0_8px_24px_-10px_rgba(0,0,0,0.15)]">
+    <div className="bg-white p-1.5 rounded-full flex gap-1">
       {SERVICES.map((s) => (
         <button
           key={s.value}
@@ -311,7 +312,7 @@ export function WeeklyAccountability({ trend }: { trend?: { date: string; count:
               ? team.seniorCells
               : [...team.seniorCells].sort((a, b) => b.attended - a.attended);
           return (
-            <div key={team.name} className="bg-[#F7F6F3] rounded-3xl overflow-hidden">
+            <div key={team.name} className="bg-[#F3EEE3] rounded-3xl overflow-hidden">
               <motion.button
                 whileTap={{ scale: 0.985 }}
                 onClick={() => setExpandedTeam(expandedTeam === team.name ? null : team.name)}
@@ -376,7 +377,7 @@ export function WeeklyAccountability({ trend }: { trend?: { date: string; count:
                             onClick={() =>
                               setExpandedSeniorCell(expandedSeniorCell === scKey ? null : scKey)
                             }
-                            className="w-full pl-8 pr-6 py-3 flex items-center justify-between hover:bg-[#FCFBF9] transition-colors text-left"
+                            className="w-full pl-8 pr-6 py-3 flex items-center justify-between hover:bg-[#FAF7F0] transition-colors text-left"
                           >
                             <div className="flex items-center gap-3 flex-1 min-w-0">
                               <div
@@ -411,7 +412,7 @@ export function WeeklyAccountability({ trend }: { trend?: { date: string; count:
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: "auto" }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="bg-[#FCFBF9]"
+                                className="bg-[#FAF7F0]"
                               >
                                 {sortedCells.map((cell) => (
                                   <div key={cell.name} className="pl-14 pr-6 py-3">
@@ -474,7 +475,7 @@ export function WeeklyAccountability({ trend }: { trend?: { date: string; count:
           </p>
         </div>
 
-        <div className="bg-white rounded-full flex items-center p-1.5 shadow-[0_8px_24px_-10px_rgba(0,0,0,0.15)]">
+        <div className="bg-white rounded-full flex items-center p-1.5">
           <button
             onClick={() => setWeekOffset((w) => w - 1)}
             className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-900 hover:bg-zinc-50 transition-all"
@@ -521,9 +522,9 @@ export function WeeklyAccountability({ trend }: { trend?: { date: string; count:
               </span>
 
               <div className="flex items-start justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-md border border-white/10">
-                  <Pulse size={26} weight="duotone" className="text-emerald-300" />
-                </div>
+                <p className="text-[10px] font-black uppercase tracking-[0.35em] text-white/35 mt-1">
+                  Live Attendance
+                </p>
                 {!noDataYet && trendWoW && trendWoW.lastWeek > 0 && (
                   <div
                     className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wide flex items-center gap-1 ${
@@ -565,18 +566,19 @@ export function WeeklyAccountability({ trend }: { trend?: { date: string; count:
             </div>
 
             {/* BUTTER — first timers with faces */}
-            <div className="candy-card p-6 flex flex-col justify-between relative overflow-hidden bg-[var(--color-butter)] shadow-[0_24px_48px_-20px_rgba(200,150,20,0.45)]">
-              <div className="flex items-start justify-between">
-                <div className="w-11 h-11 rounded-2xl bg-white/75 backdrop-blur flex items-center justify-center shadow-sm">
-                  <UserPlus size={24} weight="duotone" className="text-amber-600" />
-                </div>
-                <span className="relative flex h-3 w-3 mt-1">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-60" />
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500" />
-                </span>
+            <div className="candy-card p-6 flex flex-col justify-between relative overflow-hidden bg-[var(--color-butter)] min-h-[190px]">
+              <UserPlus
+                size={140}
+                weight="fill"
+                className="absolute -right-5 -top-6 text-[#D3A53B] -rotate-12 pointer-events-none"
+              />
+              <div className="relative z-10 flex items-start justify-between">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#3D2E00]/60">
+                  New Faces
+                </p>
               </div>
-              <div>
-                <p className="text-6xl font-black tracking-tighter text-[#3D2E00]">
+              <div className="relative z-10">
+                <p className="text-6xl font-black tracking-tighter text-[#2E2200]">
                   <CountUp value={data.summary.totalFirstTimers} />
                 </p>
                 <p className="text-[10px] font-black uppercase tracking-widest text-[#3D2E00]/50 mt-1 mb-3">
@@ -584,25 +586,30 @@ export function WeeklyAccountability({ trend }: { trend?: { date: string; count:
                 </p>
                 <AvatarStack
                   names={data.firstTimers.map((f) => f.name)}
-                  ringColor="#FFE9A8"
-                  inkClass="text-amber-700"
+                  ringColor="#EFC75E"
+                  inkClass="text-amber-800"
                 />
               </div>
             </div>
 
             {/* BUBBLEGUM — no-shows with faces */}
-            <div className="candy-card p-6 flex flex-col justify-between relative overflow-hidden bg-[var(--color-bubblegum)] shadow-[0_24px_48px_-20px_rgba(220,80,130,0.45)]">
-              <div className="flex items-start justify-between">
-                <div className="w-11 h-11 rounded-2xl bg-white/75 backdrop-blur flex items-center justify-center shadow-sm">
-                  <Warning size={24} weight="duotone" className="text-rose-500" />
-                </div>
+            <div className="candy-card p-6 flex flex-col justify-between relative overflow-hidden bg-[var(--color-bubblegum)]">
+              <HeartBreak
+                size={140}
+                weight="fill"
+                className="absolute -right-5 -top-6 text-[#E495BC] rotate-6 pointer-events-none"
+              />
+              <div className="relative z-10 flex items-start justify-between">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#4A0E22]/50">
+                  Missed Us
+                </p>
                 {!noDataYet && chronicCount > 0 && (
                   <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white text-rose-600 text-[9px] font-black uppercase tracking-wider shadow-sm">
                     <Fire size={11} weight="fill" className="text-rose-500" /> {chronicCount} at 3+ wks
                   </span>
                 )}
               </div>
-              <div>
+              <div className="relative z-10">
                 <p className="text-6xl font-black tracking-tighter text-[#4A0E22]">
                   {noDataYet ? "—" : <CountUp value={data.noShows.length} />}
                 </p>
@@ -612,38 +619,40 @@ export function WeeklyAccountability({ trend }: { trend?: { date: string; count:
                 {!noDataYet && (
                   <AvatarStack
                     names={data.noShows.map((n) => n.name)}
-                    ringColor="#FFD3E4"
-                    inkClass="text-rose-700"
+                    ringColor="#F5C4DA"
+                    inkClass="text-rose-800"
                   />
                 )}
               </div>
             </div>
 
             {/* MATCHA — total database (wide) */}
-            <div className="candy-card lg:col-span-2 p-6 sm:p-7 relative overflow-hidden bg-[var(--color-matcha)] shadow-[0_24px_48px_-20px_rgba(30,120,70,0.4)] flex items-center gap-6">
-              <div className="absolute -right-8 -bottom-10 text-emerald-900/5 pointer-events-none">
-                <UsersThree size={170} weight="fill" />
-              </div>
+            <div className="candy-card lg:col-span-2 p-6 sm:p-7 relative overflow-hidden bg-[var(--color-matcha)] flex items-center gap-6">
+              <UsersThree
+                size={170}
+                weight="fill"
+                className="absolute -right-6 -bottom-9 text-[#A9B573] pointer-events-none"
+              />
               <div className="relative z-10 shrink-0">
-                <div className="w-11 h-11 rounded-2xl bg-white/75 backdrop-blur flex items-center justify-center shadow-sm mb-4">
-                  <UsersThree size={24} weight="duotone" className="text-emerald-600" />
-                </div>
-                <p className="text-6xl font-black tracking-tighter text-[#0E3B22]">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#26300F]/50 mb-3">
+                  Congregation
+                </p>
+                <p className="text-6xl font-black tracking-tighter text-[#26300F]">
                   <CountUp value={data.summary.totalRegistered} />
                 </p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#0E3B22]/50 mt-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#26300F]/50 mt-1">
                   Total Database
                 </p>
               </div>
               <div className="relative z-10 flex-1 min-w-0">
                 <div className="flex justify-end mb-3">
-                  <span className="px-3 py-1 bg-white/75 backdrop-blur text-emerald-700 rounded-full text-[10px] font-black uppercase tracking-wide flex items-center gap-1 shadow-sm">
+                  <span className="px-3 py-1 bg-[#26300F] text-white rounded-full text-[10px] font-black uppercase tracking-wide flex items-center gap-1">
                     <Lightning weight="fill" size={12} /> Active
                   </span>
                 </div>
                 <div className="flex h-2.5 rounded-full overflow-hidden bg-white/70">
                   <div
-                    className="bg-emerald-500 rounded-full"
+                    className="bg-[#26300F] rounded-full"
                     style={{
                       width: `${
                         (data.summary.totalRegistered /
@@ -654,7 +663,7 @@ export function WeeklyAccountability({ trend }: { trend?: { date: string; count:
                   />
                 </div>
                 <div className="flex justify-between mt-2">
-                  <span className="text-[9px] font-black uppercase tracking-wider text-[#0E3B22]/60">
+                  <span className="text-[9px] font-black uppercase tracking-wider text-[#26300F]/60">
                     {data.summary.totalRegistered} members
                   </span>
                   <span className="text-[9px] font-black uppercase tracking-wider text-amber-700/70">
@@ -678,9 +687,7 @@ export function WeeklyAccountability({ trend }: { trend?: { date: string; count:
                 Last {trend.length} services
               </span>
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-11 h-11 rounded-2xl bg-white/10 flex items-center justify-center border border-white/10">
-                  <ChartLineUp size={24} weight="duotone" className="text-emerald-300" />
-                </div>
+                <ChartLineUp size={26} weight="fill" className="text-emerald-300" />
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-white/50">
                     Attendance Trend
@@ -697,10 +704,8 @@ export function WeeklyAccountability({ trend }: { trend?: { date: string; count:
           )}
 
           {noDataYet ? (
-            <div className="candy-card bg-white shadow-[0_24px_48px_-20px_rgba(0,0,0,0.12)] p-12 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-zinc-50 flex items-center justify-center mx-auto mb-4">
-                <CalendarBlank size={28} weight="duotone" className="text-zinc-400" />
-              </div>
+            <div className="candy-card bg-white p-12 text-center">
+              <CalendarBlank size={32} weight="fill" className="text-zinc-300 mx-auto mb-4" />
               <p className="text-sm font-black text-gray-900 uppercase tracking-widest">
                 No {serviceLabel} attendance this week yet
               </p>
@@ -720,16 +725,14 @@ export function WeeklyAccountability({ trend }: { trend?: { date: string; count:
               className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start"
             >
               {/* Leaderboard carousel */}
-              <div className="lg:col-span-3 candy-card bg-white shadow-[0_28px_56px_-24px_rgba(0,0,0,0.16)] p-6 sm:p-8">
+              <div className="lg:col-span-3 candy-card bg-white p-6 sm:p-8">
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                   <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-2xl bg-amber-50 flex items-center justify-center">
-                      {slide === 0 ? (
-                        <Trophy size={24} weight="duotone" className="text-amber-500" />
-                      ) : (
-                        <UsersThree size={24} weight="duotone" className="text-amber-500" />
-                      )}
-                    </div>
+                    {slide === 0 ? (
+                      <Trophy size={26} weight="fill" className="text-gray-900" />
+                    ) : (
+                      <UsersThree size={26} weight="fill" className="text-gray-900" />
+                    )}
                     <div>
                       <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">
                         {SLIDES[slide].title}
@@ -777,7 +780,7 @@ export function WeeklyAccountability({ trend }: { trend?: { date: string; count:
 
               {/* Rail: follow-up + data quality */}
               <div className="space-y-6">
-                <div className="candy-card p-6 bg-[#FFEAF2] shadow-[0_24px_48px_-20px_rgba(220,80,130,0.35)]">
+                <div className="candy-card p-6 bg-[#F9DEEA]">
                   <h3 className="text-xs font-black text-[#4A0E22] uppercase tracking-widest mb-1 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
                     Follow-Up Priority
@@ -797,7 +800,7 @@ export function WeeklyAccountability({ trend }: { trend?: { date: string; count:
                       {data.noShows.slice(0, 8).map((member) => (
                         <div
                           key={member._id}
-                          className="flex items-center justify-between gap-2 p-3 bg-white rounded-2xl shadow-[0_10px_24px_-12px_rgba(74,14,34,0.25)]"
+                          className="flex items-center justify-between gap-2 p-3 bg-white rounded-2xl"
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             <div
@@ -827,11 +830,9 @@ export function WeeklyAccountability({ trend }: { trend?: { date: string; count:
                 </div>
 
                 {data.unassignedTeam && data.unassignedTeam.registered > 0 && (
-                  <div className="candy-card p-6 bg-[var(--color-butter)] shadow-[0_24px_48px_-20px_rgba(200,150,20,0.4)]">
+                  <div className="candy-card p-6 bg-[var(--color-butter)]">
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-2xl bg-white/75 backdrop-blur flex items-center justify-center shadow-sm">
-                        <Warning size={20} weight="duotone" className="text-amber-600" />
-                      </div>
+                      <Warning size={22} weight="fill" className="text-[#3D2E00]" />
                       <h3 className="text-xs font-black text-[#3D2E00] uppercase tracking-widest">
                         Data Quality
                       </h3>
