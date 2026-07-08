@@ -16,9 +16,13 @@ import {
   Fire,
   CalendarBlank,
   UsersThree,
+  Lightning,
+  ChartLineUp,
 } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CountUp } from "./CountUp";
+import { TrendCurve } from "./TrendCurve";
+import { AvatarStack } from "./AvatarStack";
 
 interface NoShow {
   _id: string;
@@ -56,6 +60,13 @@ interface TeamData {
   seniorCells: SeniorCellData[];
 }
 
+interface FirstTimer {
+  _id: string;
+  name: string;
+  cell?: string;
+  invitedBy?: string;
+}
+
 interface WeeklyData {
   weekRange: { start: string; end: string };
   summary: {
@@ -73,6 +84,7 @@ interface WeeklyData {
   teams: TeamData[];
   unassignedTeam?: TeamData | null;
   noShows: NoShow[];
+  firstTimers: FirstTimer[];
   _meta?: {
     dataQualityIssues?: {
       unassignedCount: number;
@@ -120,23 +132,41 @@ function performanceBar(percentage: number) {
 
 /** Gold, silver, bronze medals for the podium; neutral below. */
 function rankBadge(rank: number) {
-  if (rank === 0) return "bg-gradient-to-br from-amber-300 to-amber-500 text-white shadow-lg shadow-amber-500/30";
-  if (rank === 1) return "bg-gradient-to-br from-zinc-300 to-zinc-400 text-white shadow-md shadow-zinc-400/30";
-  if (rank === 2) return "bg-gradient-to-br from-orange-300 to-orange-400 text-white shadow-md shadow-orange-400/30";
-  return "bg-zinc-100 text-zinc-500";
+  if (rank === 0)
+    return "bg-gradient-to-br from-amber-300 to-amber-500 text-white shadow-lg shadow-amber-500/40 ring-4 ring-amber-200/60";
+  if (rank === 1)
+    return "bg-gradient-to-br from-zinc-300 to-zinc-400 text-white shadow-md shadow-zinc-400/40 ring-4 ring-zinc-200/60";
+  if (rank === 2)
+    return "bg-gradient-to-br from-orange-300 to-orange-400 text-white shadow-md shadow-orange-400/40 ring-4 ring-orange-200/60";
+  return "bg-white text-zinc-500 shadow-sm";
+}
+
+// Deterministic hue per team/cell name so monograms stay consistent everywhere.
+const MONOGRAM_HUES = [
+  "bg-violet-100 text-violet-700",
+  "bg-emerald-100 text-emerald-700",
+  "bg-sky-100 text-sky-700",
+  "bg-amber-100 text-amber-700",
+  "bg-rose-100 text-rose-700",
+  "bg-indigo-100 text-indigo-700",
+];
+export function monogramHue(name: string) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return MONOGRAM_HUES[h % MONOGRAM_HUES.length];
 }
 
 function MovementChip({ movement }: { movement: number | null }) {
   if (movement === null) {
     return (
-      <span className="px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-400 text-[9px] font-black uppercase tracking-wider">
+      <span className="px-2 py-0.5 rounded-full bg-white text-zinc-400 text-[9px] font-black uppercase tracking-wider shadow-sm">
         New
       </span>
     );
   }
   if (movement === 0) {
     return (
-      <span className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-zinc-50 text-zinc-400 text-[10px] font-black">
+      <span className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-white text-zinc-400 text-[10px] font-black shadow-sm">
         <Minus size={10} weight="bold" />
       </span>
     );
@@ -144,11 +174,11 @@ function MovementChip({ movement }: { movement: number | null }) {
   const up = movement > 0;
   return (
     <span
-      className={`flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-black ${
+      className={`flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-black shadow-sm ${
         up ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
       }`}
     >
-      {up ? <ArrowUp size={10} weight="bold" /> : <ArrowDown size={10} weight="bold" />}
+      {up ? <ArrowUp size={10} weight="fill" /> : <ArrowDown size={10} weight="fill" />}
       {Math.abs(movement)}
     </span>
   );
@@ -158,17 +188,33 @@ function StreakBadge({ weeks }: { weeks: number }) {
   const chronic = weeks >= 3;
   return (
     <span
-      className={`flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0 ${
-        chronic ? "bg-rose-100 text-rose-700" : "bg-zinc-100 text-zinc-500"
+      className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0 shadow-sm ${
+        chronic ? "bg-white text-rose-600" : "bg-white/70 text-zinc-500"
       }`}
     >
-      {chronic && <Fire size={10} weight="fill" />}
+      {chronic && <Fire size={11} weight="fill" className="text-rose-500" />}
       {weeks >= 8 ? "8+ wks" : `${weeks} wk${weeks > 1 ? "s" : ""}`}
     </span>
   );
 }
 
-export function WeeklyAccountability() {
+/** Fat pill progress bar with a white end-cap dot. */
+function PillBar({ percentage, barClass, track = "bg-white" }: { percentage: number; barClass: string; track?: string }) {
+  return (
+    <div className={`h-3 ${track} rounded-full overflow-hidden`}>
+      <motion.div
+        initial={{ width: 0 }}
+        animate={{ width: `${Math.max(percentage, 3)}%` }}
+        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+        className={`relative h-full rounded-full ${barClass}`}
+      >
+        <span className="absolute right-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-white/90" />
+      </motion.div>
+    </div>
+  );
+}
+
+export function WeeklyAccountability({ trend }: { trend?: { date: string; count: number }[] }) {
   const [data, setData] = useState<WeeklyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [weekOffset, setWeekOffset] = useState(0);
@@ -213,17 +259,17 @@ export function WeeklyAccountability() {
   const noDataYet = !!data && data.summary.totalAttendance === 0;
 
   const chronicCount = data?.noShows.filter((n) => n.weeksAbsent >= 3).length ?? 0;
-  const trend = data?.summary.weekVsLastWeek;
-  const trendUp = (trend?.change ?? 0) >= 0;
+  const trendWoW = data?.summary.weekVsLastWeek;
+  const trendUp = (trendWoW?.change ?? 0) >= 0;
 
   const serviceToggle = (
-    <div className="bg-zinc-100 p-1.5 rounded-full flex gap-1">
+    <div className="bg-white p-1.5 rounded-full flex gap-1 shadow-[0_8px_24px_-10px_rgba(0,0,0,0.15)]">
       {SERVICES.map((s) => (
         <button
           key={s.value}
           onClick={() => setService(s.value)}
           className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${
-            service === s.value ? "bg-white text-black shadow-sm" : "text-stone-400 hover:text-stone-600"
+            service === s.value ? "bg-gray-900 text-white shadow-md" : "text-stone-400 hover:text-stone-600"
           }`}
         >
           {s.label}
@@ -265,14 +311,15 @@ export function WeeklyAccountability() {
               ? team.seniorCells
               : [...team.seniorCells].sort((a, b) => b.attended - a.attended);
           return (
-            <div key={team.name} className="border border-zinc-100 rounded-3xl overflow-hidden bg-white">
-              <button
+            <div key={team.name} className="bg-[#F7F6F3] rounded-3xl overflow-hidden">
+              <motion.button
+                whileTap={{ scale: 0.985 }}
                 onClick={() => setExpandedTeam(expandedTeam === team.name ? null : team.name)}
-                className="w-full px-5 sm:px-6 py-4 hover:bg-zinc-50/80 transition-colors text-left"
+                className="w-full px-5 sm:px-6 py-4 text-left"
               >
                 <div className="flex items-center gap-4">
                   <div
-                    className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${rankBadge(rank)}`}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-black shrink-0 ${rankBadge(rank)}`}
                   >
                     {rank + 1}
                   </div>
@@ -290,27 +337,23 @@ export function WeeklyAccountability() {
                   {metricBadge(team.attended, team.percentage)}
                   <CaretDown
                     size={18}
+                    weight="bold"
                     className={`text-gray-300 transition-transform shrink-0 ${
                       expandedTeam === team.name ? "rotate-180" : ""
                     }`}
                   />
                 </div>
-                <div className="mt-3 ml-[52px] h-1.5 bg-zinc-100 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{
-                      width:
-                        mode === "strength"
-                          ? `${team.percentage}%`
-                          : `${(team.attended / maxAttended) * 100}%`,
-                    }}
-                    transition={{ duration: 0.8, delay: rank * 0.05 }}
-                    className={`h-full rounded-full ${
-                      mode === "strength" ? performanceBar(team.percentage) : "bg-gradient-to-r from-gray-700 to-gray-900"
-                    }`}
+                <div className="mt-3 ml-[56px]">
+                  <PillBar
+                    percentage={mode === "strength" ? team.percentage : (team.attended / maxAttended) * 100}
+                    barClass={
+                      mode === "strength"
+                        ? performanceBar(team.percentage)
+                        : "bg-gradient-to-r from-gray-700 to-gray-900"
+                    }
                   />
                 </div>
-              </button>
+              </motion.button>
 
               <AnimatePresence>
                 {expandedTeam === team.name && (
@@ -318,7 +361,7 @@ export function WeeklyAccountability() {
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="bg-zinc-50/60 border-t border-zinc-100 divide-y divide-zinc-100"
+                    className="bg-white"
                   >
                     {sortedSCs.map((seniorCell) => {
                       const scKey = `${team.name}::${seniorCell.name}`;
@@ -328,30 +371,39 @@ export function WeeklyAccountability() {
                           : [...seniorCell.cells].sort((a, b) => b.attended - a.attended);
                       return (
                         <div key={scKey}>
-                          <button
+                          <motion.button
+                            whileTap={{ scale: 0.99 }}
                             onClick={() =>
                               setExpandedSeniorCell(expandedSeniorCell === scKey ? null : scKey)
                             }
-                            className="w-full pl-10 pr-6 py-3 flex items-center justify-between hover:bg-zinc-100/60 transition-colors text-left"
+                            className="w-full pl-8 pr-6 py-3 flex items-center justify-between hover:bg-[#FCFBF9] transition-colors text-left"
                           >
-                            <div className="flex-1 min-w-0">
-                              <h5 className="text-xs font-black text-gray-700 truncate">
-                                {seniorCell.name}
-                              </h5>
-                              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
-                                {seniorCell.attended} of {seniorCell.registered}
-                              </p>
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <div
+                                className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 ${monogramHue(seniorCell.name)}`}
+                              >
+                                {seniorCell.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="min-w-0">
+                                <h5 className="text-xs font-black text-gray-800 truncate">
+                                  {seniorCell.name}
+                                </h5>
+                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                                  {seniorCell.attended} of {seniorCell.registered}
+                                </p>
+                              </div>
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
                               {metricBadge(seniorCell.attended, seniorCell.percentage, "sm")}
                               <CaretDown
                                 size={14}
+                                weight="bold"
                                 className={`text-gray-300 transition-transform ${
                                   expandedSeniorCell === scKey ? "rotate-180" : ""
                                 }`}
                               />
                             </div>
-                          </button>
+                          </motion.button>
 
                           <AnimatePresence>
                             {expandedSeniorCell === scKey && (
@@ -359,7 +411,7 @@ export function WeeklyAccountability() {
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: "auto" }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="bg-white divide-y divide-zinc-50"
+                                className="bg-[#FCFBF9]"
                               >
                                 {sortedCells.map((cell) => (
                                   <div key={cell.name} className="pl-14 pr-6 py-3">
@@ -381,7 +433,7 @@ export function WeeklyAccountability() {
                                         {cell.noShows.map((member) => (
                                           <span
                                             key={member._id}
-                                            className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 text-rose-700 rounded-full text-[9px] font-bold"
+                                            className="flex items-center gap-1.5 px-2.5 py-1 bg-white text-rose-600 rounded-full text-[9px] font-bold shadow-sm"
                                           >
                                             {member.name}
                                             <span className="opacity-50 font-black">
@@ -422,10 +474,10 @@ export function WeeklyAccountability() {
           </p>
         </div>
 
-        <div className="glass-frosted rounded-full flex items-center p-1.5">
+        <div className="bg-white rounded-full flex items-center p-1.5 shadow-[0_8px_24px_-10px_rgba(0,0,0,0.15)]">
           <button
             onClick={() => setWeekOffset((w) => w - 1)}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-900 hover:bg-white transition-all"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-900 hover:bg-zinc-50 transition-all"
             aria-label="Previous week"
           >
             <CaretLeft size={16} weight="bold" />
@@ -436,7 +488,7 @@ export function WeeklyAccountability() {
           <button
             onClick={() => setWeekOffset((w) => Math.min(0, w + 1))}
             disabled={weekOffset === 0}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-900 hover:bg-white transition-all disabled:opacity-20 disabled:hover:bg-transparent"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-900 hover:bg-zinc-50 transition-all disabled:opacity-20"
             aria-label="Next week"
           >
             <CaretRight size={16} weight="bold" />
@@ -445,127 +497,209 @@ export function WeeklyAccountability() {
       </div>
 
       {loading || !data ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[0, 1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className={`bento-card h-48 animate-pulse bg-zinc-50 ${i === 0 ? "lg:col-span-2" : ""}`}
-            />
-          ))}
-          <div className="bento-card h-96 animate-pulse bg-zinc-50 lg:col-span-3" />
-          <div className="bento-card h-96 animate-pulse bg-zinc-50" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:auto-rows-[190px]">
+          <div className="candy-card lg:col-span-2 lg:row-span-2 animate-pulse bg-zinc-100" />
+          <div className="candy-card animate-pulse bg-zinc-100" />
+          <div className="candy-card animate-pulse bg-zinc-100" />
+          <div className="candy-card lg:col-span-2 animate-pulse bg-zinc-100" />
+          <div className="candy-card lg:col-span-4 h-64 animate-pulse bg-zinc-100" />
         </div>
       ) : (
         <>
-          {/* HERO STATS */}
+          {/* BENTO MOSAIC */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:auto-rows-[minmax(190px,auto)]"
           >
-            {/* Attendance hero */}
-            <div className="lg:col-span-2 glow-tile text-white p-8 relative overflow-hidden flex flex-col justify-between min-h-[200px]">
-              <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#3f3f46_1px,transparent_1px)] [background-size:16px_16px]" />
-              <div className="relative z-10 flex items-start justify-between">
-                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md border border-white/5">
-                  <Pulse size={20} className="text-emerald-400" />
+            {/* GLOW HERO 2×2 */}
+            <div className="lg:col-span-2 lg:row-span-2 glow-tile text-white p-8 relative overflow-hidden flex flex-col justify-between">
+              {/* rotated edge micro-text — signature detail from the reference */}
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 origin-center text-[9px] font-black uppercase tracking-[0.4em] text-white/25 whitespace-nowrap pointer-events-none">
+                {serviceLabel} · {format(range.start, "MMM d")} · {data.summary.totalAttendance} souls
+              </span>
+
+              <div className="flex items-start justify-between">
+                <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-md border border-white/10">
+                  <Pulse size={26} weight="duotone" className="text-emerald-300" />
                 </div>
-                {!noDataYet && trend && trend.lastWeek > 0 && (
+                {!noDataYet && trendWoW && trendWoW.lastWeek > 0 && (
                   <div
                     className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wide flex items-center gap-1 ${
-                      trendUp ? "bg-emerald-400/10 text-emerald-300" : "bg-rose-400/10 text-rose-300"
+                      trendUp ? "bg-emerald-400/15 text-emerald-300" : "bg-rose-400/15 text-rose-300"
                     }`}
                   >
-                    {trendUp ? <ArrowUp size={12} weight="bold" /> : <ArrowDown size={12} weight="bold" />}
-                    {Math.abs(trend.change)} vs last week
+                    {trendUp ? <ArrowUp size={12} weight="fill" /> : <ArrowDown size={12} weight="fill" />}
+                    {Math.abs(trendWoW.change)} vs last week
                   </div>
                 )}
               </div>
-              <div className="relative z-10 mt-4">
+
+              <div className="mt-6">
                 <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1">
                   {serviceLabel} Attendance
                 </p>
                 {noDataYet ? (
                   <div className="flex items-baseline gap-3">
-                    <span className="text-6xl sm:text-7xl font-black tracking-tighter text-white/20">—</span>
+                    <span className="text-7xl font-black tracking-tighter text-white/20">—</span>
                     <span className="text-xs font-bold text-white/40 uppercase tracking-widest">
                       Not marked yet
                     </span>
                   </div>
                 ) : (
                   <div className="flex items-baseline gap-3">
-                    <span className="text-6xl sm:text-7xl font-black tracking-tighter">
+                    <span className="text-7xl sm:text-8xl font-black tracking-tighter">
                       <CountUp value={data.summary.attendanceRate} />%
                     </span>
                     <span className="text-sm font-bold text-white/40">
-                      {data.summary.totalAttendance} / {data.summary.totalRegistered} members
+                      {data.summary.totalAttendance} / {data.summary.totalRegistered}
                     </span>
                   </div>
                 )}
               </div>
+
+              <div className="mt-6 pr-8">
+                {trend && trend.length > 1 && <TrendCurve data={trend.slice(-5)} compact />}
+              </div>
             </div>
 
-            {/* First timers */}
-            <div className="bento-card p-6 flex flex-col justify-between relative overflow-hidden group bg-[var(--color-pearl-gold)] border-amber-100/70">
-              <div className="absolute -right-8 -bottom-8 text-amber-900/5 transition-transform group-hover:scale-110 duration-700 pointer-events-none">
-                <UserPlus size={150} weight="fill" />
-              </div>
-              <div className="relative z-10 flex items-start justify-between">
-                <div className="w-10 h-10 rounded-full bg-white/70 backdrop-blur flex items-center justify-center text-amber-500 shadow-sm">
-                  <UserPlus size={20} weight="bold" />
+            {/* BUTTER — first timers with faces */}
+            <div className="candy-card p-6 flex flex-col justify-between relative overflow-hidden bg-[var(--color-butter)] shadow-[0_24px_48px_-20px_rgba(200,150,20,0.45)]">
+              <div className="flex items-start justify-between">
+                <div className="w-11 h-11 rounded-2xl bg-white/75 backdrop-blur flex items-center justify-center shadow-sm">
+                  <UserPlus size={24} weight="duotone" className="text-amber-600" />
                 </div>
                 <span className="relative flex h-3 w-3 mt-1">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-60" />
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500" />
                 </span>
               </div>
-              <div className="relative z-10 mt-4">
-                <p className="text-6xl font-black tracking-tighter text-amber-950">
+              <div>
+                <p className="text-6xl font-black tracking-tighter text-[#3D2E00]">
                   <CountUp value={data.summary.totalFirstTimers} />
                 </p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-amber-900/40 mt-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#3D2E00]/50 mt-1 mb-3">
                   First Timers
                 </p>
-                <p className="text-[9px] font-bold text-amber-900/30 uppercase tracking-wider mt-1">
-                  New faces this week
-                </p>
+                <AvatarStack
+                  names={data.firstTimers.map((f) => f.name)}
+                  ringColor="#FFE9A8"
+                  inkClass="text-amber-700"
+                />
               </div>
             </div>
 
-            {/* No-shows */}
-            <div className="bento-card p-6 flex flex-col justify-between relative overflow-hidden group bg-[var(--color-pearl-pink)] border-rose-100/70">
-              <div className="absolute -right-8 -bottom-8 text-rose-900/5 transition-transform group-hover:scale-110 duration-700 pointer-events-none">
-                <Warning size={150} weight="fill" />
-              </div>
-              <div className="relative z-10 flex items-start justify-between">
-                <div className="w-10 h-10 rounded-full bg-white/70 backdrop-blur flex items-center justify-center text-rose-500 shadow-sm">
-                  <Warning size={20} weight="bold" />
+            {/* BUBBLEGUM — no-shows with faces */}
+            <div className="candy-card p-6 flex flex-col justify-between relative overflow-hidden bg-[var(--color-bubblegum)] shadow-[0_24px_48px_-20px_rgba(220,80,130,0.45)]">
+              <div className="flex items-start justify-between">
+                <div className="w-11 h-11 rounded-2xl bg-white/75 backdrop-blur flex items-center justify-center shadow-sm">
+                  <Warning size={24} weight="duotone" className="text-rose-500" />
                 </div>
                 {!noDataYet && chronicCount > 0 && (
-                  <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/70 backdrop-blur text-rose-600 text-[9px] font-black uppercase tracking-wider shadow-sm">
-                    <Fire size={10} weight="fill" /> {chronicCount} at 3+ wks
+                  <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white text-rose-600 text-[9px] font-black uppercase tracking-wider shadow-sm">
+                    <Fire size={11} weight="fill" className="text-rose-500" /> {chronicCount} at 3+ wks
                   </span>
                 )}
               </div>
-              <div className="relative z-10 mt-4">
-                <p className="text-6xl font-black tracking-tighter text-rose-950">
+              <div>
+                <p className="text-6xl font-black tracking-tighter text-[#4A0E22]">
                   {noDataYet ? "—" : <CountUp value={data.noShows.length} />}
                 </p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-rose-900/40 mt-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#4A0E22]/50 mt-1 mb-3">
                   No-Shows
                 </p>
-                <p className="text-[9px] font-bold text-rose-900/30 uppercase tracking-wider mt-1">
-                  Need follow-up
+                {!noDataYet && (
+                  <AvatarStack
+                    names={data.noShows.map((n) => n.name)}
+                    ringColor="#FFD3E4"
+                    inkClass="text-rose-700"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* MATCHA — total database (wide) */}
+            <div className="candy-card lg:col-span-2 p-6 sm:p-7 relative overflow-hidden bg-[var(--color-matcha)] shadow-[0_24px_48px_-20px_rgba(30,120,70,0.4)] flex items-center gap-6">
+              <div className="absolute -right-8 -bottom-10 text-emerald-900/5 pointer-events-none">
+                <UsersThree size={170} weight="fill" />
+              </div>
+              <div className="relative z-10 shrink-0">
+                <div className="w-11 h-11 rounded-2xl bg-white/75 backdrop-blur flex items-center justify-center shadow-sm mb-4">
+                  <UsersThree size={24} weight="duotone" className="text-emerald-600" />
+                </div>
+                <p className="text-6xl font-black tracking-tighter text-[#0E3B22]">
+                  <CountUp value={data.summary.totalRegistered} />
                 </p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#0E3B22]/50 mt-1">
+                  Total Database
+                </p>
+              </div>
+              <div className="relative z-10 flex-1 min-w-0">
+                <div className="flex justify-end mb-3">
+                  <span className="px-3 py-1 bg-white/75 backdrop-blur text-emerald-700 rounded-full text-[10px] font-black uppercase tracking-wide flex items-center gap-1 shadow-sm">
+                    <Lightning weight="fill" size={12} /> Active
+                  </span>
+                </div>
+                <div className="flex h-2.5 rounded-full overflow-hidden bg-white/70">
+                  <div
+                    className="bg-emerald-500 rounded-full"
+                    style={{
+                      width: `${
+                        (data.summary.totalRegistered /
+                          (data.summary.totalRegistered + Math.max(data.summary.totalFirstTimers, 1))) *
+                        100
+                      }%`,
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between mt-2">
+                  <span className="text-[9px] font-black uppercase tracking-wider text-[#0E3B22]/60">
+                    {data.summary.totalRegistered} members
+                  </span>
+                  <span className="text-[9px] font-black uppercase tracking-wider text-amber-700/70">
+                    {data.summary.totalFirstTimers} first-timers this week
+                  </span>
+                </div>
               </div>
             </div>
           </motion.div>
 
+          {/* TREND BAND */}
+          {trend && trend.length > 1 && (
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-40px" }}
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              className="glow-tile relative overflow-hidden p-6 sm:p-8"
+            >
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 origin-center text-[9px] font-black uppercase tracking-[0.4em] text-white/25 whitespace-nowrap pointer-events-none">
+                Last {trend.length} services
+              </span>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-11 h-11 rounded-2xl bg-white/10 flex items-center justify-center border border-white/10">
+                  <ChartLineUp size={24} weight="duotone" className="text-emerald-300" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white/50">
+                    Attendance Trend
+                  </p>
+                  <p className="text-[9px] font-bold text-white/25 uppercase tracking-wider">
+                    Every service, head count
+                  </p>
+                </div>
+              </div>
+              <div className="pr-10">
+                <TrendCurve data={trend} />
+              </div>
+            </motion.div>
+          )}
+
           {noDataYet ? (
-            <div className="bento-card p-12 text-center hover:transform-none">
-              <div className="w-14 h-14 rounded-full bg-zinc-50 flex items-center justify-center mx-auto mb-4 text-zinc-300">
-                <CalendarBlank size={26} weight="duotone" />
+            <div className="candy-card bg-white shadow-[0_24px_48px_-20px_rgba(0,0,0,0.12)] p-12 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-zinc-50 flex items-center justify-center mx-auto mb-4">
+                <CalendarBlank size={28} weight="duotone" className="text-zinc-400" />
               </div>
               <p className="text-sm font-black text-gray-900 uppercase tracking-widest">
                 No {serviceLabel} attendance this week yet
@@ -582,18 +716,18 @@ export function WeeklyAccountability() {
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-40px" }}
-              transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.5, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
               className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start"
             >
               {/* Leaderboard carousel */}
-              <div className="lg:col-span-3 bento-card p-6 sm:p-8 hover:transform-none">
+              <div className="lg:col-span-3 candy-card bg-white shadow-[0_28px_56px_-24px_rgba(0,0,0,0.16)] p-6 sm:p-8">
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center text-amber-500">
+                    <div className="w-11 h-11 rounded-2xl bg-amber-50 flex items-center justify-center">
                       {slide === 0 ? (
-                        <Trophy size={18} weight="duotone" />
+                        <Trophy size={24} weight="duotone" className="text-amber-500" />
                       ) : (
-                        <UsersThree size={18} weight="duotone" />
+                        <UsersThree size={24} weight="duotone" className="text-amber-500" />
                       )}
                     </div>
                     <div>
@@ -643,18 +777,18 @@ export function WeeklyAccountability() {
 
               {/* Rail: follow-up + data quality */}
               <div className="space-y-6">
-                <div className="bento-card p-6 bg-rose-50/60 border-rose-100/70 hover:transform-none">
-                  <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-1 flex items-center gap-2">
+                <div className="candy-card p-6 bg-[#FFEAF2] shadow-[0_24px_48px_-20px_rgba(220,80,130,0.35)]">
+                  <h3 className="text-xs font-black text-[#4A0E22] uppercase tracking-widest mb-1 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
                     Follow-Up Priority
                   </h3>
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-4">
+                  <p className="text-[9px] font-bold text-[#4A0E22]/40 uppercase tracking-wider mb-4">
                     Longest absence streaks first
                   </p>
 
                   {data.noShows.length === 0 ? (
                     <div className="text-center py-6 opacity-40">
-                      <p className="text-[10px] font-black uppercase tracking-widest">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-[#4A0E22]">
                         Full attendance — all clear
                       </p>
                     </div>
@@ -663,11 +797,13 @@ export function WeeklyAccountability() {
                       {data.noShows.slice(0, 8).map((member) => (
                         <div
                           key={member._id}
-                          className="flex items-center justify-between gap-2 p-3 bg-white rounded-2xl border border-rose-100/60 shadow-sm"
+                          className="flex items-center justify-between gap-2 p-3 bg-white rounded-2xl shadow-[0_10px_24px_-12px_rgba(74,14,34,0.25)]"
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-[10px] font-black text-rose-600 shrink-0">
-                              {member.name.charAt(0)}
+                            <div
+                              className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 ${monogramHue(member.name)}`}
+                            >
+                              {member.name.charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0">
                               <p className="font-bold text-xs text-gray-900 truncate leading-none">
@@ -682,7 +818,7 @@ export function WeeklyAccountability() {
                         </div>
                       ))}
                       {data.noShows.length > 8 && (
-                        <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest text-center pt-2">
+                        <p className="text-[9px] font-black text-rose-500/70 uppercase tracking-widest text-center pt-2">
                           +{data.noShows.length - 8} more to follow up
                         </p>
                       )}
@@ -691,19 +827,19 @@ export function WeeklyAccountability() {
                 </div>
 
                 {data.unassignedTeam && data.unassignedTeam.registered > 0 && (
-                  <div className="bento-card p-6 bg-[var(--color-pearl-gold)] border-amber-100/70 hover:transform-none">
+                  <div className="candy-card p-6 bg-[var(--color-butter)] shadow-[0_24px_48px_-20px_rgba(200,150,20,0.4)]">
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
-                        <Warning size={16} weight="bold" />
+                      <div className="w-10 h-10 rounded-2xl bg-white/75 backdrop-blur flex items-center justify-center shadow-sm">
+                        <Warning size={20} weight="duotone" className="text-amber-600" />
                       </div>
-                      <h3 className="text-xs font-black text-amber-900 uppercase tracking-widest">
+                      <h3 className="text-xs font-black text-[#3D2E00] uppercase tracking-widest">
                         Data Quality
                       </h3>
                     </div>
-                    <p className="text-xs font-medium text-amber-800 leading-relaxed">
+                    <p className="text-xs font-medium text-[#3D2E00]/80 leading-relaxed">
                       {data._meta?.dataQualityIssues?.unassignedMessage}
                     </p>
-                    <p className="text-[9px] font-bold text-amber-600/70 uppercase tracking-wider mt-3">
+                    <p className="text-[9px] font-bold text-[#3D2E00]/40 uppercase tracking-wider mt-3">
                       Assign them a team, senior cell & cell to include them in rankings
                     </p>
                   </div>

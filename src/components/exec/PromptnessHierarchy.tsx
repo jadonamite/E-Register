@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { TrendUp, CalendarBlank, CaretDown } from "@phosphor-icons/react";
+import { Alarm, CalendarBlank, CaretDown } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { monogramHue } from "./WeeklyAccountability";
 
 interface CellStats {
   name: string;
@@ -33,6 +33,41 @@ interface AnalyticsData {
   earlyThreshold: string;
   lateThreshold: string;
   teams: TeamStats[];
+}
+
+function onTimeChip(pct: number) {
+  if (pct >= 80) return "bg-emerald-50 text-emerald-700";
+  if (pct >= 60) return "bg-amber-50 text-amber-700";
+  return "bg-rose-50 text-rose-700";
+}
+
+/** Quiet count chip: one colored dot + a number — never a rainbow bar. */
+function DotChip({ color, label, value }: { color: string; label: string; value: number }) {
+  return (
+    <span
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white text-[9px] font-black uppercase tracking-wider text-gray-500 shadow-sm"
+      title={`${value} ${label}`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${color}`} />
+      {value}
+    </span>
+  );
+}
+
+/** Single-hue punctuality bar: on-time share only, everything else stays quiet. */
+function OnTimeBar({ pct, className = "" }: { pct: number; className?: string }) {
+  return (
+    <div className={`h-3 bg-white rounded-full overflow-hidden ${className}`}>
+      <motion.div
+        initial={{ width: 0 }}
+        animate={{ width: `${Math.max(pct, 3)}%` }}
+        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+        className="relative h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500"
+      >
+        <span className="absolute right-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-white/90" />
+      </motion.div>
+    </div>
+  );
 }
 
 export function PromptnessHierarchy() {
@@ -65,282 +100,204 @@ export function PromptnessHierarchy() {
     fetchAnalytics();
   }, [service, date]);
 
-  if (loading) {
-    return <div className="text-sm text-gray-400">Loading analytics...</div>;
-  }
+  const header = (
+    <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex items-center gap-3">
+        <div className="w-11 h-11 rounded-2xl bg-emerald-50 flex items-center justify-center">
+          <Alarm size={24} weight="duotone" className="text-emerald-500" />
+        </div>
+        <div>
+          <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Promptness</h3>
+          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+            On-time arrivals per team
+            {data ? ` · early < ${data.earlyThreshold} · late > ${data.lateThreshold}` : ""}
+          </p>
+        </div>
+      </div>
 
-  if (!data || data.teams.length === 0) {
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative">
+          <CalendarBlank
+            size={18}
+            weight="duotone"
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none"
+          />
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="pl-11 pr-4 py-2.5 bg-zinc-50 rounded-full text-xs font-bold text-stone-700 focus:ring-2 focus:ring-stone-900 outline-none transition-all uppercase tracking-wider cursor-pointer"
+          />
+        </div>
+        <div className="bg-zinc-100 p-1.5 rounded-full flex gap-1">
+          {["Sunday", "Mid-Week"].map((s) => (
+            <button
+              key={s}
+              onClick={() => setService(s)}
+              className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${
+                service === s ? "bg-gray-900 text-white shadow-md" : "text-stone-400 hover:text-stone-600"
+              }`}
+            >
+              {s === "Mid-Week" ? "Wednesday" : s}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (loading) {
     return (
-      <div className="text-center py-12 opacity-30">
-        <p className="text-sm font-bold text-gray-600">No attendance data yet</p>
+      <div className="space-y-6">
+        {header}
+        <div className="space-y-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-16 rounded-3xl bg-zinc-50 animate-pulse" />
+          ))}
+        </div>
       </div>
     );
   }
 
-  const getPerformanceColor = (onTimePct: number) => {
-    if (onTimePct >= 80) return "bg-emerald-50 text-emerald-700";
-    if (onTimePct >= 60) return "bg-amber-50 text-amber-700";
-    return "bg-rose-50 text-rose-700";
-  };
-
-  const getBarColor = (value: number, total: number) => {
-    const pct = (value / total) * 100;
-    if (value === 0) return "bg-gray-200";
-    if (pct < 50) return "bg-red-500";
-    if (pct < 70) return "bg-amber-500";
-    return "bg-emerald-500";
-  };
-
-  const toggleTeam = (teamName: string) => {
-    setExpandedTeam(expandedTeam === teamName ? null : teamName);
-  };
-
-  const toggleSeniorCell = (seniorCellName: string) => {
-    setExpandedSeniorCell(expandedSeniorCell === seniorCellName ? null : seniorCellName);
-  };
+  if (!data || data.teams.length === 0) {
+    return (
+      <div className="space-y-6">
+        {header}
+        <div className="text-center py-12 opacity-30">
+          <p className="text-sm font-bold text-gray-600">No attendance data for this date</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
-              <TrendUp size={18} weight="duotone" />
-            </div>
-            <div>
-              <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Promptness</h3>
-              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
-                Who arrives early, on time, late
-              </p>
-            </div>
-          </div>
-          <div className="text-[9px] text-gray-400 mt-3 flex flex-wrap gap-x-4 gap-y-1 font-bold uppercase tracking-wider">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-sky-400" /> Early · before {data.earlyThreshold}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" /> On-time · {data.earlyThreshold}—{data.lateThreshold}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-rose-400" /> Late · after {data.lateThreshold}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-zinc-200" /> Absent
-            </span>
-          </div>
-        </div>
+      {header}
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
-            <CalendarBlank size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="pl-11 pr-4 py-2.5 bg-white border border-zinc-200 rounded-full text-xs font-bold text-stone-700 focus:ring-2 focus:ring-stone-900 focus:border-transparent outline-none hover:border-stone-300 transition-all uppercase tracking-wider cursor-pointer"
-            />
-          </div>
-          <div className="bg-zinc-100 p-1.5 rounded-full flex gap-1">
-            {["Sunday", "Mid-Week"].map((s) => (
-              <button
-                key={s}
-                onClick={() => setService(s)}
-                className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${
-                  service === s ? "bg-white text-black shadow-sm" : "text-stone-400 hover:text-stone-600"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Teams */}
       <div className="space-y-3">
         {data.teams.map((team) => (
-          <div key={team.name} className="border border-zinc-100 rounded-3xl overflow-hidden bg-white">
-            {/* Team Header */}
-            <button
-              onClick={() => toggleTeam(team.name)}
-              className="w-full px-6 py-4 flex items-center justify-between transition-colors hover:bg-zinc-50/80"
+          <div key={team.name} className="bg-[#F7F6F3] rounded-3xl overflow-hidden">
+            <motion.button
+              whileTap={{ scale: 0.985 }}
+              onClick={() => setExpandedTeam(expandedTeam === team.name ? null : team.name)}
+              className="w-full px-5 sm:px-6 py-4 text-left"
             >
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="text-left">
-                  <h4 className="font-bold text-sm">{team.name}</h4>
-                  <p className="text-[9px] opacity-60">Total: {team.total}</p>
+              <div className="flex items-center gap-4">
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-black shrink-0 ${monogramHue(team.name)}`}
+                >
+                  {team.name.charAt(0).toUpperCase()}
                 </div>
-              </div>
-
-              <div className="flex items-center gap-4 shrink-0">
-                <div className="flex h-6 rounded-full overflow-hidden bg-zinc-100 w-32">
-                  {team.early > 0 && (
-                    <div
-                      style={{ width: `${(team.early / team.total) * 100}%` }}
-                      className="bg-sky-400"
-                      title={`${team.early} early (${team.earlyPct}%)`}
-                    />
-                  )}
-                  {team.onTime > 0 && (
-                    <div
-                      style={{ width: `${(team.onTime / team.total) * 100}%` }}
-                      className="bg-emerald-400"
-                      title={`${team.onTime} on-time (${team.onTimePct}%)`}
-                    />
-                  )}
-                  {team.late > 0 && (
-                    <div
-                      style={{ width: `${(team.late / team.total) * 100}%` }}
-                      className="bg-rose-400"
-                      title={`${team.late} late (${team.latePct}%)`}
-                    />
-                  )}
-                  {team.absent > 0 && (
-                    <div
-                      style={{ width: `${(team.absent / team.total) * 100}%` }}
-                      className="bg-zinc-200"
-                      title={`${team.absent} absent (${team.absentPct}%)`}
-                    />
-                  )}
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-black text-gray-900 truncate">{team.name}</h4>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">
+                    {team.onTime + team.early} punctual of {team.total}
+                  </p>
                 </div>
-
-                <div className={cn("px-3 py-1 rounded-full text-sm font-black", getPerformanceColor(team.onTimePct))}>{team.onTimePct}%</div>
+                <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+                  <DotChip color="bg-sky-400" label="early" value={team.early} />
+                  <DotChip color="bg-rose-400" label="late" value={team.late} />
+                  <DotChip color="bg-zinc-300" label="absent" value={team.absent} />
+                </div>
+                <div
+                  className={`px-3 py-1 rounded-full text-sm font-black shrink-0 ${onTimeChip(team.onTimePct)}`}
+                >
+                  {team.onTimePct}%
+                </div>
                 <CaretDown
-                  size={20}
-                  className={`text-gray-400 transition-transform ${expandedTeam === team.name ? "rotate-180" : ""}`}
+                  size={18}
+                  weight="bold"
+                  className={`text-gray-300 transition-transform shrink-0 ${
+                    expandedTeam === team.name ? "rotate-180" : ""
+                  }`}
                 />
               </div>
-            </button>
+              <OnTimeBar pct={team.onTimePct} className="mt-3 ml-[56px]" />
+            </motion.button>
 
-            {/* Senior Cells (Collapsed) */}
             <AnimatePresence>
               {expandedTeam === team.name && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="bg-gray-50 divide-y"
+                  className="bg-white"
                 >
-                  {team.seniorCells.map((seniorCell) => (
-                    <div key={`${team.name}::${seniorCell.name}`}>
-                      <button
-                        onClick={() => toggleSeniorCell(`${team.name}::${seniorCell.name}`)}
-                        className="w-full px-6 py-3 flex items-center justify-between hover:bg-gray-100 transition-colors text-left"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <h5 className="font-bold text-xs text-gray-900">{seniorCell.name}</h5>
-                          <p className="text-[9px] text-gray-600">
-                            {seniorCell.onTime}/{seniorCell.total} on-time
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-3 shrink-0">
-                          <div className="flex h-5 rounded-full overflow-hidden bg-zinc-100 w-24">
-                            {seniorCell.early > 0 && (
-                              <div
-                                style={{ width: `${(seniorCell.early / seniorCell.total) * 100}%` }}
-                                className="bg-sky-400"
-                              />
-                            )}
-                            {seniorCell.onTime > 0 && (
-                              <div
-                                style={{ width: `${(seniorCell.onTime / seniorCell.total) * 100}%` }}
-                                className="bg-emerald-400"
-                              />
-                            )}
-                            {seniorCell.late > 0 && (
-                              <div
-                                style={{ width: `${(seniorCell.late / seniorCell.total) * 100}%` }}
-                                className="bg-rose-400"
-                              />
-                            )}
-                            {seniorCell.absent > 0 && (
-                              <div
-                                style={{ width: `${(seniorCell.absent / seniorCell.total) * 100}%` }}
-                                className="bg-zinc-200"
-                              />
-                            )}
+                  {team.seniorCells.map((seniorCell) => {
+                    const scKey = `${team.name}::${seniorCell.name}`;
+                    return (
+                      <div key={scKey}>
+                        <motion.button
+                          whileTap={{ scale: 0.99 }}
+                          onClick={() =>
+                            setExpandedSeniorCell(expandedSeniorCell === scKey ? null : scKey)
+                          }
+                          className="w-full pl-8 pr-6 py-3 flex items-center justify-between hover:bg-[#FCFBF9] transition-colors text-left"
+                        >
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div
+                              className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 ${monogramHue(seniorCell.name)}`}
+                            >
+                              {seniorCell.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <h5 className="text-xs font-black text-gray-800 truncate">{seniorCell.name}</h5>
+                              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                                {seniorCell.onTime} on time of {seniorCell.total}
+                              </p>
+                            </div>
                           </div>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <div className="w-24 hidden sm:block">
+                              <OnTimeBar pct={seniorCell.onTimePct} className="!h-2 !bg-zinc-100" />
+                            </div>
+                            <div
+                              className={`px-2.5 py-0.5 rounded-full text-xs font-black ${onTimeChip(seniorCell.onTimePct)}`}
+                            >
+                              {seniorCell.onTimePct}%
+                            </div>
+                            <CaretDown
+                              size={14}
+                              weight="bold"
+                              className={`text-gray-300 transition-transform ${
+                                expandedSeniorCell === scKey ? "rotate-180" : ""
+                              }`}
+                            />
+                          </div>
+                        </motion.button>
 
-                          <div className="text-lg font-black text-gray-900 w-10 text-right">{seniorCell.onTimePct}%</div>
-                          <CaretDown
-                            size={16}
-                            className={`text-gray-400 transition-transform ${
-                              expandedSeniorCell === `${team.name}::${seniorCell.name}` ? "rotate-180" : ""
-                            }`}
-                          />
-                        </div>
-                      </button>
-
-                      {/* Cells (Collapsed) */}
-                      <AnimatePresence>
-                        {expandedSeniorCell === `${team.name}::${seniorCell.name}` && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: "auto" }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="bg-white divide-y"
-                          >
-                            {seniorCell.cells.map((cell) => (
-                              <div key={cell.name} className="px-6 py-3 flex items-center justify-between hover:bg-gray-50">
-                                <div className="flex-1 min-w-0">
-                                  <h6 className="font-bold text-xs text-gray-900">{cell.name}</h6>
-                                  <div className="text-[9px] text-gray-600 flex gap-2 mt-1">
-                                    <span className="flex items-center gap-1">
-                                      <span className="w-2 h-2 rounded-full bg-sky-400" />
-                                      {cell.early}
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                                      {cell.onTime}
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                      <span className="w-2 h-2 rounded-full bg-rose-400" />
-                                      {cell.late}
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                      <span className="w-2 h-2 rounded-full bg-zinc-200" />
-                                      {cell.absent}
-                                    </span>
+                        <AnimatePresence>
+                          {expandedSeniorCell === scKey && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="bg-[#FCFBF9]"
+                            >
+                              {seniorCell.cells.map((cell) => (
+                                <div key={cell.name} className="pl-14 pr-6 py-3 flex items-center justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <h6 className="text-xs font-black text-gray-900 truncate">{cell.name}</h6>
+                                    <div className="flex items-center gap-1.5 mt-1">
+                                      <DotChip color="bg-sky-400" label="early" value={cell.early} />
+                                      <DotChip color="bg-emerald-400" label="on time" value={cell.onTime} />
+                                      <DotChip color="bg-rose-400" label="late" value={cell.late} />
+                                      <DotChip color="bg-zinc-300" label="absent" value={cell.absent} />
+                                    </div>
+                                  </div>
+                                  <div
+                                    className={`px-2.5 py-0.5 rounded-full text-xs font-black shrink-0 ${onTimeChip(cell.onTimePct)}`}
+                                  >
+                                    {cell.onTimePct}%
                                   </div>
                                 </div>
-
-                                <div className="flex items-center gap-3 shrink-0">
-                                  <div className="flex h-4 rounded-full overflow-hidden bg-zinc-100 w-20">
-                                    {cell.early > 0 && (
-                                      <div
-                                        style={{ width: `${(cell.early / cell.total) * 100}%` }}
-                                        className="bg-sky-400"
-                                      />
-                                    )}
-                                    {cell.onTime > 0 && (
-                                      <div
-                                        style={{ width: `${(cell.onTime / cell.total) * 100}%` }}
-                                        className="bg-emerald-400"
-                                      />
-                                    )}
-                                    {cell.late > 0 && (
-                                      <div
-                                        style={{ width: `${(cell.late / cell.total) * 100}%` }}
-                                        className="bg-rose-400"
-                                      />
-                                    )}
-                                    {cell.absent > 0 && (
-                                      <div
-                                        style={{ width: `${(cell.absent / cell.total) * 100}%` }}
-                                        className="bg-zinc-200"
-                                      />
-                                    )}
-                                  </div>
-                                  <div className="text-sm font-black text-gray-900 w-8 text-right">{cell.onTimePct}%</div>
-                                </div>
-                              </div>
-                            ))}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  ))}
+                              ))}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  })}
                 </motion.div>
               )}
             </AnimatePresence>
