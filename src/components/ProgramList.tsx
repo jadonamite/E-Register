@@ -47,43 +47,43 @@ export function ProgramList({ rows, canMark, loading, memberNames = [], onMark, 
       {canMark && (
         <div>
           {showWalkin ? (
-            <div className="flex flex-col sm:flex-row gap-2 p-4 bg-white border border-zinc-200 rounded-[1.75rem]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 p-4 bg-white border border-zinc-200 rounded-[1.75rem]">
               <input
                 autoFocus
                 placeholder="Full name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="flex-1 px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-medium outline-none focus:border-stone-400"
+                className="min-w-0 w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-medium outline-none focus:border-stone-400"
               />
               <input
                 placeholder="Phone (0801…)"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="flex-1 px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-medium outline-none focus:border-stone-400"
+                className="min-w-0 w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-medium outline-none focus:border-stone-400"
               />
               <input
                 list="member-invite-names"
                 placeholder="Invited by (optional)"
                 value={invitedBy}
                 onChange={(e) => setInvitedBy(e.target.value)}
-                className="flex-1 px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-medium outline-none focus:border-stone-400"
+                className="min-w-0 w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-medium outline-none focus:border-stone-400"
               />
               <datalist id="member-invite-names">
                 {memberNames.map((n) => (
                   <option key={n} value={n} />
                 ))}
               </datalist>
-              <div className="flex gap-2">
+              <div className="flex gap-2 sm:col-span-2 lg:col-span-3">
                 <button
                   onClick={submitWalkin}
                   disabled={saving || name.trim().length < 2 || phone.trim().length < 10}
-                  className="px-5 py-3 rounded-xl bg-stone-900 text-white text-[11px] font-black uppercase tracking-wider disabled:opacity-40"
+                  className="flex-1 px-5 py-3 rounded-xl bg-stone-900 text-white text-[11px] font-black uppercase tracking-wider disabled:opacity-40"
                 >
                   {saving ? "Adding…" : "Check in"}
                 </button>
                 <button
                   onClick={() => setShowWalkin(false)}
-                  className="w-11 rounded-xl bg-zinc-100 text-zinc-500 flex items-center justify-center"
+                  className="w-11 rounded-xl bg-zinc-100 text-zinc-500 flex items-center justify-center shrink-0"
                 >
                   <X weight="bold" size={16} />
                 </button>
