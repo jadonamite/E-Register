@@ -1,17 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Logo } from "@/components/Logo";
 import { MemberList } from "@/components/MemberList";
+import { ProgramList } from "@/components/ProgramList";
 import { AddMemberModal } from "@/components/AddMemberModal";
 import { useMembers } from "@/hooks/use-members";
+import { useProgramRoster } from "@/hooks/use-program-roster";
 import { MagnifyingGlass, Pulse, CalendarBlank, Plus, X } from "@phosphor-icons/react";
 import { format } from "date-fns";
 import { MarkerBar } from "@/components/MarkerBar";
 import { SyncPill } from "@/components/SyncPill";
 
+type ProgramTab = { id: string; name: string; serviceLabel: string };
+
 export default function PFCCDashboard() {
   const [service, setService] = useState("Sunday");
+  const [activeProgram, setActiveProgram] = useState<ProgramTab | null>(null);
+  const [programs, setPrograms] = useState<ProgramTab[]>([]);
   const [date, setDate] = useState<Date>(new Date());
   const [canMark, setCanMark] = useState(false);
 
@@ -20,6 +26,16 @@ export default function PFCCDashboard() {
 
   const [editingMember, setEditingMember] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Program tabs render beside Sunday/Mid-Week; each active program is a button.
+  useEffect(() => {
+    fetch("/api/programs")
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setPrograms)
+      .catch(() => {});
+  }, []);
+
+  const inProgram = !!activeProgram;
 
   const {
     filteredMembers,
@@ -38,6 +54,8 @@ export default function PFCCDashboard() {
     authExpired,
     syncNow
   } = useMembers(service, date);
+
+  const program = useProgramRoster(activeProgram?.id ?? null, date);
 
   const displayMembers = filterByHierarchy(filterType, filterValue);
 
@@ -61,6 +79,8 @@ export default function PFCCDashboard() {
     seniorCell: getUniqueLevels("seniorCell"),
     cell: getUniqueLevels("cell"),
   };
+
+  const liveCount = inProgram ? program.presentCount : signedInIds.length;
 
   return (
     <div className="min-h-screen bg-[#FDFBFC] p-6 md:p-12 font-unio max-w-[1600px] mx-auto relative z-0">
@@ -87,18 +107,40 @@ export default function PFCCDashboard() {
             />
           </div>
 
-          <div className="bg-zinc-100 p-1.5 rounded-xl flex gap-1">
-            {["Sunday", "Mid-Week"].map((s) => (
-              <button
-                key={s}
-                onClick={() => setService(s)}
-                className={`px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
-                  service === s ? "bg-white text-black shadow-sm" : "text-stone-400 hover:text-stone-600"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
+          <div className="bg-zinc-100 p-1.5 rounded-xl flex gap-1 flex-wrap justify-center">
+            {["Sunday", "Mid-Week"].map((s) => {
+              const active = !inProgram && service === s;
+              return (
+                <button
+                  key={s}
+                  onClick={() => {
+                    setActiveProgram(null);
+                    setService(s);
+                  }}
+                  className={`px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                    active ? "bg-white text-black shadow-sm" : "text-stone-400 hover:text-stone-600"
+                  }`}
+                >
+                  {s}
+                </button>
+              );
+            })}
+            {programs.map((p) => {
+              const active = activeProgram?.id === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => setActiveProgram(p)}
+                  className={`px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                    active
+                      ? "bg-stone-900 text-white shadow-sm"
+                      : "text-stone-400 hover:text-stone-600"
+                  }`}
+                >
+                  {p.serviceLabel}
+                </button>
+              );
+            })}
           </div>
         </div>
       </header>
@@ -110,9 +152,13 @@ export default function PFCCDashboard() {
           </div>
           <div className="flex flex-col gap-8 mb-10">
             <div>
-              <h1 className="text-4xl sm:text-6xl font-black tracking-tighter text-stone-900">Attendance</h1>
+              <h1 className="text-4xl sm:text-6xl font-black tracking-tighter text-stone-900">
+                {inProgram ? activeProgram!.name : "Attendance"}
+              </h1>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 opacity-40">
-                <span className="text-xs font-bold uppercase tracking-[0.4em]">{service} Session</span>
+                <span className="text-xs font-bold uppercase tracking-[0.4em]">
+                  {inProgram ? "Program" : `${service} Session`}
+                </span>
                 <span className="w-1 h-1 bg-black rounded-full" />
                 <span className="text-xs font-bold uppercase tracking-[0.2em]">{format(date, "MMMM d, yyyy")}</span>
               </div>
@@ -122,72 +168,86 @@ export default function PFCCDashboard() {
               <div className="relative w-full max-w-2xl group">
                 <MagnifyingGlass className="absolute left-6 top-1/2 -translate-y-1/2 opacity-20" size={24} />
                 <input
-                  placeholder="Search name, phone or cell..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={inProgram ? "Search invitees, members or walk-ins…" : "Search name, phone or cell..."}
+                  value={inProgram ? program.searchQuery : searchQuery}
+                  onChange={(e) =>
+                    inProgram ? program.setSearchQuery(e.target.value) : setSearchQuery(e.target.value)
+                  }
                   className="h-16 w-full pl-16 bg-white border border-zinc-100 rounded-3xl font-medium text-lg focus:border-stone-300 focus:ring-4 focus:ring-stone-100 outline-none shadow-sm transition-all text-stone-800 placeholder:text-stone-300"
                 />
               </div>
 
-              {/* Hierarchy Filters */}
-              <div className="space-y-3">
-                <div className="bg-zinc-100 p-1.5 rounded-full flex gap-1 w-fit max-w-full overflow-x-auto">
-                  {([
-                    ["all", "Everyone"],
-                    ["team", "Team"],
-                    ["seniorCell", "Senior Cell"],
-                    ["cell", "Cell"],
-                  ] as const).map(([type, label]) => (
-                    <button
-                      key={type}
-                      onClick={() => {
-                        setFilterType(type);
-                        setFilterValue("");
-                      }}
-                      className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all ${
-                        filterType === type
-                          ? "bg-white text-black shadow-sm"
-                          : "text-stone-400 hover:text-stone-600"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
-                {filterType !== "all" && (
-                  <div className="flex gap-2 overflow-x-auto pb-1 -mb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {filterOptions[filterType as keyof typeof filterOptions].map((option) => {
-                      const selected = filterValue === option;
-                      return (
-                        <button
-                          key={option}
-                          onClick={() => setFilterValue(selected ? "" : option)}
-                          className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap border transition-all ${
-                            selected
-                              ? "bg-stone-900 text-white border-stone-900 shadow-lg shadow-stone-900/10"
-                              : "bg-white text-stone-500 border-zinc-200 hover:border-stone-300 hover:text-stone-800"
-                          }`}
-                        >
-                          {option}
-                          {selected && <X size={12} weight="bold" className="opacity-60" />}
-                        </button>
-                      );
-                    })}
+              {/* Hierarchy Filters — members only */}
+              {!inProgram && (
+                <div className="space-y-3">
+                  <div className="bg-zinc-100 p-1.5 rounded-full flex gap-1 w-fit max-w-full overflow-x-auto">
+                    {([
+                      ["all", "Everyone"],
+                      ["team", "Team"],
+                      ["seniorCell", "Senior Cell"],
+                      ["cell", "Cell"],
+                    ] as const).map(([type, label]) => (
+                      <button
+                        key={type}
+                        onClick={() => {
+                          setFilterType(type);
+                          setFilterValue("");
+                        }}
+                        className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all ${
+                          filterType === type
+                            ? "bg-white text-black shadow-sm"
+                            : "text-stone-400 hover:text-stone-600"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
                   </div>
-                )}
-              </div>
+
+                  {filterType !== "all" && (
+                    <div className="flex gap-2 overflow-x-auto pb-1 -mb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      {filterOptions[filterType as keyof typeof filterOptions].map((option) => {
+                        const selected = filterValue === option;
+                        return (
+                          <button
+                            key={option}
+                            onClick={() => setFilterValue(selected ? "" : option)}
+                            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap border transition-all ${
+                              selected
+                                ? "bg-stone-900 text-white border-stone-900 shadow-lg shadow-stone-900/10"
+                                : "bg-white text-stone-500 border-zinc-200 hover:border-stone-300 hover:text-stone-800"
+                            }`}
+                          >
+                            {option}
+                            {selected && <X size={12} weight="bold" className="opacity-60" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
-          <MemberList
-            members={displayMembers}
-            signedInIds={signedInIds}
-            onMarkPresent={markPresent}
-            onEdit={handleEditInitiated}
-            onPromote={handlePromote}
-            canMark={canMark}
-          />
+          {inProgram ? (
+            <ProgramList
+              rows={program.rows}
+              canMark={canMark}
+              loading={program.loading}
+              onMark={program.markPresent}
+              onAddWalkin={program.addWalkin}
+            />
+          ) : (
+            <MemberList
+              members={displayMembers}
+              signedInIds={signedInIds}
+              onMarkPresent={markPresent}
+              onEdit={handleEditInitiated}
+              onPromote={handlePromote}
+              canMark={canMark}
+            />
+          )}
         </div>
 
         <div className="lg:col-span-4 order-first lg:order-none">
@@ -196,12 +256,14 @@ export default function PFCCDashboard() {
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-gradient-to-b from-stone-800 to-stone-900 -z-10" />
 
               <Pulse size={32} className="text-emerald-400 mb-4 animate-pulse" />
-              <span className="text-[10px] font-black opacity-40 uppercase tracking-[0.5em] mb-2">Live Count</span>
-              <span className="text-7xl sm:text-9xl font-black tracking-tighter leading-none">{signedInIds.length}</span>
+              <span className="text-[10px] font-black opacity-40 uppercase tracking-[0.5em] mb-2">
+                {inProgram ? "Checked In" : "Live Count"}
+              </span>
+              <span className="text-7xl sm:text-9xl font-black tracking-tighter leading-none">{liveCount}</span>
 
               <div className="mt-8 px-4 py-2 bg-white/5 rounded-full border border-white/5">
                 <p className="text-[9px] font-bold uppercase tracking-widest opacity-60">
-                  {format(date, "MMM do")} Record
+                  {inProgram ? `${activeProgram!.name} · ${program.total} on roster` : `${format(date, "MMM do")} Record`}
                 </p>
               </div>
             </div>
@@ -224,7 +286,7 @@ export default function PFCCDashboard() {
           onDelete={deleteMember}
         />
 
-        {!isModalOpen && canMark && (
+        {!isModalOpen && canMark && !inProgram && (
           <button
             onClick={handleAddNew}
             className="w-20 h-20 rounded-full bg-black text-white flex items-center justify-center shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:scale-110 active:scale-90 transition-all"
