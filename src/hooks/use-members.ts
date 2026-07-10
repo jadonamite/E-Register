@@ -2,6 +2,13 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import { loadRoster, saveRoster } from "@/lib/offline/db";
 import { queueToggle, drainOutbox, pendingCount, pendingForDate } from "@/lib/offline/queue";
+import {
+  queueCreate,
+  queueUpdate,
+  queueDelete,
+  memberPendingCount,
+  drainMemberOutbox,
+} from "@/lib/offline/member-queue";
 import { useOnline } from "@/hooks/use-online";
 
 // Reconcile the "already present" set: server-persisted attendance for the
@@ -38,30 +45,60 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
   const draining = useRef(false);
 
   const refreshPending = useCallback(async () => {
-    setPending(await pendingCount());
+    const [att, mem] = await Promise.all([pendingCount(), memberPendingCount()]);
+    setPending(att + mem);
   }, []);
 
-  // Drain the outbox. Safe to call repeatedly; guarded against overlap.
+  // Pull canonical members from the server and reconcile the present-set with
+  // any still-pending offline marks. Returns false (and keeps cache) offline.
+  const refreshFromServer = useCallback(async (): Promise<boolean> => {
+    const dateStr = selectedDate.toDateString();
+    try {
+      const res = await fetch("/api/members");
+      if (!res.ok) return false;
+      const data = await res.json();
+      const pend = await pendingForDate(currentService, dateStr);
+      setMembers(data);
+      setSignedInIds(computeSignedIn(data, currentService, dateStr, pend));
+      saveRoster(data);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [currentService, selectedDate]);
+
+  // Drain both queues — members first (so attendance for offline-created people
+  // can be rewired to their real ids), then attendance. Guarded against overlap.
   const syncNow = useCallback(async () => {
     if (draining.current) return;
-    if ((await pendingCount()) === 0) return;
+    if ((await pendingCount()) + (await memberPendingCount()) === 0) return;
     draining.current = true;
     setSyncing(true);
     try {
-      const res = await drainOutbox();
-      if (res.authExpired) {
+      const mem = await drainMemberOutbox();
+      if (mem.authExpired) {
         setAuthExpired(true);
-        toast.error("Session expired — sign in again to sync pending marks");
-      } else if (res.synced > 0) {
+        toast.error("Session expired — sign in again to sync your changes");
+        return;
+      }
+      const att = await drainOutbox();
+      if (att.authExpired) {
+        setAuthExpired(true);
+        toast.error("Session expired — sign in again to sync your changes");
+      } else {
         setAuthExpired(false);
-        toast.success(`Synced ${res.synced} pending ${res.synced === 1 ? "mark" : "marks"}`);
+      }
+      const done = mem.synced + att.synced;
+      if (done > 0) {
+        toast.success(`Synced ${done} ${done === 1 ? "change" : "changes"}`);
+        await refreshFromServer();
       }
     } finally {
       draining.current = false;
       setSyncing(false);
       await refreshPending();
     }
-  }, [refreshPending]);
+  }, [refreshPending, refreshFromServer]);
 
   // 1. Load members: cached snapshot first (instant, works offline), then a
   // network refresh that updates the cache when it succeeds.
@@ -77,29 +114,16 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
         setSignedInIds(computeSignedIn(snap.members, currentService, dateStr, pend));
         setLoading(false);
       }
-
-      try {
-        const res = await fetch("/api/members");
-        if (res.ok) {
-          const data = await res.json();
-          if (cancelled) return;
-          const pend = await pendingForDate(currentService, dateStr);
-          setMembers(data);
-          setSignedInIds(computeSignedIn(data, currentService, dateStr, pend));
-          saveRoster(data);
-        }
-      } catch {
-        if (!snap && !cancelled) toast.error("Offline and no cached list yet");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      const ok = await refreshFromServer();
+      if (!ok && !snap && !cancelled) toast.error("Offline and no cached list yet");
+      if (!cancelled) setLoading(false);
     }
 
     load();
     return () => {
       cancelled = true;
     };
-  }, [currentService, selectedDate]);
+  }, [currentService, selectedDate, refreshFromServer]);
 
   // 2. Keep pending count fresh and drain whenever we (re)gain connectivity.
   useEffect(() => {
@@ -148,7 +172,20 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
   // 4. Add Member
   const addMember = async (data: any) => {
     const tempId = Date.now().toString();
-    const optimisticMember = { ...data, _id: tempId, attendance: [] };
+    const optimisticMember = { ...data, _id: tempId, attendance: [], _pending: true };
+
+    // Offline: keep locally + queue the create; sync (with validation) later.
+    if (!online) {
+      setMembers(prev => {
+        const next = [optimisticMember, ...prev];
+        saveRoster(next);
+        return next;
+      });
+      await queueCreate(tempId, data);
+      await refreshPending();
+      toast.success("Saved offline — will sync when online");
+      return;
+    }
 
     setMembers(prev => [optimisticMember, ...prev]);
 
@@ -184,6 +221,19 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
   const updateMember = async (data: any) => {
     const originalMember = members.find(m => m._id === data._id);
 
+    // Offline: apply locally + queue the edit (folds into a pending create).
+    if (!online) {
+      setMembers(prev => {
+        const next = prev.map(m => m._id === data._id ? { ...m, ...data } : m);
+        saveRoster(next);
+        return next;
+      });
+      await queueUpdate(data._id, data);
+      await refreshPending();
+      toast.success("Saved offline — will sync when online");
+      return;
+    }
+
     setMembers(prev => prev.map(m => m._id === data._id ? { ...m, ...data } : m));
 
     try {
@@ -218,6 +268,20 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
   // 6. Delete Member
   const deleteMember = async (id: string) => {
     const original = members;
+
+    // Offline: remove locally + queue the delete (or cancel a pending create).
+    if (!online) {
+      setMembers(prev => {
+        const next = prev.filter(m => m._id !== id);
+        saveRoster(next);
+        return next;
+      });
+      const outcome = await queueDelete(id);
+      await refreshPending();
+      toast.success(outcome === "cancelled" ? "Removed" : "Removed offline — will sync when online");
+      return;
+    }
+
     setMembers(prev => prev.filter(m => m._id !== id));
 
     try {

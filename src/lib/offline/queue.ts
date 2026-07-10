@@ -14,6 +14,25 @@ import {
   putOutbox,
 } from "./db";
 
+/**
+ * Rewrite queued attendance items from a temporary (offline-created) member id
+ * to the real id the server assigned, so their marks land on the right person.
+ * The outbox key embeds the memberId, so the row is re-keyed too.
+ */
+export async function remapMemberId(tempId: string, realId: string): Promise<void> {
+  const items = await allOutbox();
+  for (const it of items) {
+    if (it.memberId !== tempId) continue;
+    await deleteOutbox(it.id);
+    const next: OutboxItem = {
+      ...it,
+      memberId: realId,
+      id: outboxId(realId, it.serviceType, it.dateStr),
+    };
+    await putOutbox(next);
+  }
+}
+
 export function outboxId(memberId: string, serviceType: string, dateStr: string): string {
   return `${memberId}|${serviceType}|${dateStr}`;
 }
@@ -52,6 +71,16 @@ export async function queueToggle(req: ToggleRequest): Promise<OutboxItem | null
   };
   await putOutbox(item);
   return item;
+}
+
+/** Drop any queued attendance for a member (used when an offline-created member
+ * is deleted before ever syncing, so nothing is sent for a person who never
+ * reached the server). */
+export async function purgeAttendanceForMember(memberId: string): Promise<void> {
+  const items = await allOutbox();
+  for (const it of items) {
+    if (it.memberId === memberId) await deleteOutbox(it.id);
+  }
 }
 
 async function sendItem(item: OutboxItem): Promise<Response> {
