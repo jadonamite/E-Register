@@ -1,45 +1,116 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
+import { loadRoster, saveRoster } from "@/lib/offline/db";
+import { queueToggle, drainOutbox, pendingCount, pendingForDate } from "@/lib/offline/queue";
+import { useOnline } from "@/hooks/use-online";
+
+// Reconcile the "already present" set: server-persisted attendance for the
+// selected day, plus optimistic queued marks, minus queued unmarks. This keeps
+// a queued-but-unsynced mark visible as present across reloads.
+function computeSignedIn(
+  memberList: any[],
+  service: string,
+  dateStr: string,
+  pending: { mark: Set<string>; unmark: Set<string> }
+): string[] {
+  const ids = new Set<string>();
+  for (const m of memberList) {
+    const present = m.attendance?.some((r: any) => {
+      return new Date(r.date).toDateString() === dateStr && r.serviceType === service;
+    });
+    if (present) ids.add(m._id);
+  }
+  for (const id of pending.mark) ids.add(id);
+  for (const id of pending.unmark) ids.delete(id);
+  return Array.from(ids);
+}
 
 export function useMembers(currentService: string = "Sunday", selectedDate: Date = new Date()) {
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [signedInIds, setSignedInIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [pending, setPending] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+  const [authExpired, setAuthExpired] = useState(false);
 
-  // 1. Fetch Members
+  const online = useOnline();
+  const draining = useRef(false);
+
+  const refreshPending = useCallback(async () => {
+    setPending(await pendingCount());
+  }, []);
+
+  // Drain the outbox. Safe to call repeatedly; guarded against overlap.
+  const syncNow = useCallback(async () => {
+    if (draining.current) return;
+    if ((await pendingCount()) === 0) return;
+    draining.current = true;
+    setSyncing(true);
+    try {
+      const res = await drainOutbox();
+      if (res.authExpired) {
+        setAuthExpired(true);
+        toast.error("Session expired — sign in again to sync pending marks");
+      } else if (res.synced > 0) {
+        setAuthExpired(false);
+        toast.success(`Synced ${res.synced} pending ${res.synced === 1 ? "mark" : "marks"}`);
+      }
+    } finally {
+      draining.current = false;
+      setSyncing(false);
+      await refreshPending();
+    }
+  }, [refreshPending]);
+
+  // 1. Load members: cached snapshot first (instant, works offline), then a
+  // network refresh that updates the cache when it succeeds.
   useEffect(() => {
-    async function fetchMembers() {
+    let cancelled = false;
+    const dateStr = selectedDate.toDateString();
+
+    async function load() {
+      const snap = await loadRoster();
+      if (snap && !cancelled) {
+        const pend = await pendingForDate(currentService, dateStr);
+        setMembers(snap.members);
+        setSignedInIds(computeSignedIn(snap.members, currentService, dateStr, pend));
+        setLoading(false);
+      }
+
       try {
         const res = await fetch("/api/members");
         if (res.ok) {
           const data = await res.json();
+          if (cancelled) return;
+          const pend = await pendingForDate(currentService, dateStr);
           setMembers(data);
-
-          const targetDateStr = selectedDate.toDateString(); 
-          
-          const alreadyPresentIds = data
-            .filter((m: any) => 
-              m.attendance?.some((record: any) => {
-                const recordDate = new Date(record.date).toDateString();
-                return recordDate === targetDateStr && record.serviceType === currentService;
-              })
-            )
-            .map((m: any) => m._id);
-
-          setSignedInIds(alreadyPresentIds);
+          setSignedInIds(computeSignedIn(data, currentService, dateStr, pend));
+          saveRoster(data);
         }
-      } catch (error) {
-        console.error("Failed to load members", error);
-        toast.error("Could not load member list");
+      } catch {
+        if (!snap && !cancelled) toast.error("Offline and no cached list yet");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
-    fetchMembers();
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, [currentService, selectedDate]);
 
-  // 2. Filter Logic — name, cell, or phone (digits compared without spacing/dashes)
+  // 2. Keep pending count fresh and drain whenever we (re)gain connectivity.
+  useEffect(() => {
+    refreshPending();
+  }, [refreshPending]);
+
+  useEffect(() => {
+    if (online) syncNow();
+  }, [online, syncNow]);
+
+  // 3. Search filter — name, cell, or phone (digits compared without spacing).
   const filteredMembers = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     const qDigits = q.replace(/\D/g, "");
@@ -50,7 +121,6 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
     );
   }, [searchQuery, members]);
 
-  // Filter by hierarchy
   const getUniqueLevels = (level: "team" | "seniorCell" | "cell") => {
     const values = new Set(
       members
@@ -75,11 +145,11 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
     });
   };
 
-  // 3. Add Member
+  // 4. Add Member
   const addMember = async (data: any) => {
     const tempId = Date.now().toString();
     const optimisticMember = { ...data, _id: tempId, attendance: [] };
-    
+
     setMembers(prev => [optimisticMember, ...prev]);
 
     try {
@@ -96,7 +166,11 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
       }
 
       const savedMember = await res.json();
-      setMembers(prev => prev.map(m => m._id === tempId ? savedMember : m));
+      setMembers(prev => {
+        const next = prev.map(m => m._id === tempId ? savedMember : m);
+        saveRoster(next);
+        return next;
+      });
       toast.success("Member added successfully");
 
     } catch (error: any) {
@@ -106,11 +180,10 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
     }
   };
 
-  // 4. Update Member (The new Edit logic)
+  // 5. Update Member
   const updateMember = async (data: any) => {
     const originalMember = members.find(m => m._id === data._id);
-    
-    // Optimistic Update
+
     setMembers(prev => prev.map(m => m._id === data._id ? { ...m, ...data } : m));
 
     try {
@@ -126,11 +199,14 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
       }
 
       const updated = await res.json();
-      setMembers(prev => prev.map(m => m._id === data._id ? updated : m));
+      setMembers(prev => {
+        const next = prev.map(m => m._id === data._id ? updated : m);
+        saveRoster(next);
+        return next;
+      });
       toast.success(data.status === "Member" && !originalMember?.cell ? "Converted to member" : "Member details updated");
 
     } catch (error: any) {
-      // Revert on failure
       if (originalMember) {
         setMembers(prev => prev.map(m => m._id === data._id ? originalMember : m));
       }
@@ -139,7 +215,7 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
     }
   };
 
-  // 5. Delete Member
+  // 6. Delete Member
   const deleteMember = async (id: string) => {
     const original = members;
     setMembers(prev => prev.filter(m => m._id !== id));
@@ -155,6 +231,10 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
         const { error } = await res.json().catch(() => ({ error: "" }));
         throw new Error(error || "Failed to delete");
       }
+      setMembers(prev => {
+        saveRoster(prev);
+        return prev;
+      });
       toast.success("Member removed from the database");
     } catch (error: any) {
       setMembers(original);
@@ -163,38 +243,29 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
     }
   };
 
-  // 6. Toggle Attendance
+  // 7. Toggle Attendance — durable: recorded in the outbox first, then synced.
+  // A dropped signal or reload never loses the mark; it drains on reconnect.
   const toggleAttendance = async (id: string) => {
+    const dateStr = selectedDate.toDateString();
     const isPresent = signedInIds.includes(id);
+    const desiredOp = isPresent ? "unmark" : "mark";
 
-    if (isPresent) {
-      setSignedInIds(prev => prev.filter(sid => sid !== id));
-      toast.info("Marked Absent");
+    // Optimistic UI
+    setSignedInIds(prev => isPresent ? prev.filter(sid => sid !== id) : [...prev, id]);
+
+    await queueToggle({
+      memberId: id,
+      serviceType: currentService,
+      dateStr,
+      dateISO: selectedDate.toISOString(),
+      desiredOp,
+    });
+    await refreshPending();
+
+    if (online) {
+      await syncNow();
     } else {
-      setSignedInIds(prev => [...prev, id]);
-      toast.success("Marked Present");
-    }
-
-    try {
-      const method = isPresent ? "DELETE" : "POST";
-      const res = await fetch("/api/attendance", {
-        method: method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          memberId: id,
-          serviceType: currentService, 
-          date: selectedDate.toISOString() 
-        }),
-      });
-
-      if (!res.ok) {
-        const { error: message } = await res.json().catch(() => ({ error: "" }));
-        throw new Error(message || "Failed to sync");
-      }
-    } catch (error: any) {
-      if (isPresent) setSignedInIds(prev => [...prev, id]);
-      else setSignedInIds(prev => prev.filter(sid => sid !== id));
-      toast.error(error?.message || "Attendance sync failed");
+      toast.info(isPresent ? "Unmarked — will sync" : "Marked — will sync when online");
     }
   };
 
@@ -210,6 +281,12 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
     loading,
     totalCount: members.length,
     getUniqueLevels,
-    filterByHierarchy
+    filterByHierarchy,
+    // offline status
+    online,
+    pending,
+    syncing,
+    authExpired,
+    syncNow,
   };
 }

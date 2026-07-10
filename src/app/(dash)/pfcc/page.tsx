@@ -8,6 +8,7 @@ import { useMembers } from "@/hooks/use-members";
 import { MagnifyingGlass, Pulse, CalendarBlank, Plus, X } from "@phosphor-icons/react";
 import { format } from "date-fns";
 import { MarkerBar } from "@/components/MarkerBar";
+import { SyncPill } from "@/components/SyncPill";
 
 export default function PFCCDashboard() {
   const [service, setService] = useState("Sunday");
@@ -30,7 +31,12 @@ export default function PFCCDashboard() {
     deleteMember,
     markPresent,
     getUniqueLevels,
-    filterByHierarchy
+    filterByHierarchy,
+    online,
+    pending,
+    syncing,
+    authExpired,
+    syncNow
   } = useMembers(service, date);
 
   const displayMembers = filterByHierarchy(filterType, filterValue);
@@ -62,6 +68,13 @@ export default function PFCCDashboard() {
         <Logo />
 
         <div className="flex flex-wrap items-center justify-center gap-3 w-full lg:w-auto">
+          <SyncPill
+            online={online}
+            pending={pending}
+            syncing={syncing}
+            authExpired={authExpired}
+            onSync={syncNow}
+          />
           <div className="relative group flex-1 min-w-[150px] lg:flex-none">
             <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
               <CalendarBlank size={18} className="text-stone-400" />
