@@ -19,6 +19,8 @@ const ProgramAttendanceSchema = new Schema({
   // Provenance when known (absent for walk-ins).
   memberId: { type: Schema.Types.ObjectId, ref: "Member" },
   contactId: { type: Schema.Types.ObjectId, ref: "OutreachContact" },
+  // Who invited this attendee — often a member, free-text, optional (walk-ins).
+  invitedBy: { type: String, trim: true },
   markedBy: { type: String },
   markedAt: { type: Date, default: Date.now },
 });

@@ -15,22 +15,25 @@ interface Props {
   rows: RosterRow[];
   canMark: boolean;
   loading: boolean;
+  memberNames?: string[];
   onMark: (row: RosterRow) => void;
-  onAddWalkin: (name: string, phone: string) => Promise<void>;
+  onAddWalkin: (name: string, phone: string, invitedBy?: string) => Promise<void>;
 }
 
-export function ProgramList({ rows, canMark, loading, onMark, onAddWalkin }: Props) {
+export function ProgramList({ rows, canMark, loading, memberNames = [], onMark, onAddWalkin }: Props) {
   const [showWalkin, setShowWalkin] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [invitedBy, setInvitedBy] = useState("");
   const [saving, setSaving] = useState(false);
 
   const submitWalkin = async () => {
     setSaving(true);
     try {
-      await onAddWalkin(name.trim(), phone.trim());
+      await onAddWalkin(name.trim(), phone.trim(), invitedBy.trim() || undefined);
       setName("");
       setPhone("");
+      setInvitedBy("");
       setShowWalkin(false);
     } catch {
       // toast surfaced by the hook
@@ -58,6 +61,18 @@ export function ProgramList({ rows, canMark, loading, onMark, onAddWalkin }: Pro
                 onChange={(e) => setPhone(e.target.value)}
                 className="flex-1 px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-medium outline-none focus:border-stone-400"
               />
+              <input
+                list="member-invite-names"
+                placeholder="Invited by (optional)"
+                value={invitedBy}
+                onChange={(e) => setInvitedBy(e.target.value)}
+                className="flex-1 px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-medium outline-none focus:border-stone-400"
+              />
+              <datalist id="member-invite-names">
+                {memberNames.map((n) => (
+                  <option key={n} value={n} />
+                ))}
+              </datalist>
               <div className="flex gap-2">
                 <button
                   onClick={submitWalkin}
@@ -109,6 +124,11 @@ export function ProgramList({ rows, canMark, loading, onMark, onAddWalkin }: Pro
                   {row.cell}
                 </span>
                 <span className="text-[10px] font-bold text-zinc-400 tracking-tight">{row.phone}</span>
+                {row.invitedBy && (
+                  <span className="text-[10px] font-bold text-zinc-400 tracking-tight">
+                    · invited by {row.invitedBy}
+                  </span>
+                )}
               </div>
             </div>
 

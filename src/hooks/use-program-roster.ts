@@ -11,6 +11,7 @@ export interface RosterRow {
   cell: string;
   role?: string;
   tag: string;
+  invitedBy?: string;
   present: boolean;
 }
 
@@ -91,11 +92,11 @@ export function useProgramRoster(programId: string | null, date: Date) {
     }
   };
 
-  const addWalkin = async (name: string, phone: string) => {
+  const addWalkin = async (name: string, phone: string, invitedBy?: string) => {
     const res = await fetch("/api/program-attendance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ programId, date: dateISO, phone, name, source: "walkin" }),
+      body: JSON.stringify({ programId, date: dateISO, phone, name, source: "walkin", invitedBy }),
     });
     if (!res.ok) {
       const { error } = await res.json().catch(() => ({ error: "" }));

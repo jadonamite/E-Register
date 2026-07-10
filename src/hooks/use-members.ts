@@ -10,6 +10,7 @@ import {
   drainMemberOutbox,
 } from "@/lib/offline/member-queue";
 import { useOnline } from "@/hooks/use-online";
+import { serviceMatchesDate, serviceDayName } from "@/lib/service-schedule";
 
 // Reconcile the "already present" set: server-persisted attendance for the
 // selected day, plus optimistic queued marks, minus queued unmarks. This keeps
@@ -314,6 +315,12 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
     const isPresent = signedInIds.includes(id);
     const desiredOp = isPresent ? "unmark" : "mark";
 
+    // Only mark on the service's own weekday (unmarking a mistake is allowed).
+    if (!isPresent && !serviceMatchesDate(currentService, selectedDate)) {
+      toast.error(`${currentService} attendance can only be marked on a ${serviceDayName(currentService)}`);
+      return;
+    }
+
     // Optimistic UI
     setSignedInIds(prev => isPresent ? prev.filter(sid => sid !== id) : [...prev, id]);
 
@@ -344,6 +351,7 @@ export function useMembers(currentService: string = "Sunday", selectedDate: Date
     markPresent: toggleAttendance,
     loading,
     totalCount: members.length,
+    memberNames: members.map((m) => m.name).filter(Boolean),
     getUniqueLevels,
     filterByHierarchy,
     // offline status

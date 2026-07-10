@@ -37,6 +37,7 @@ type Row = {
   cell: string;
   role?: string;
   tag: string; // small badge label
+  invitedBy?: string;
   present: boolean;
 };
 
@@ -146,8 +147,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
     // 3. Walk-ins recorded against this program.
     const walkins = await ProgramAttendance.find({ programId: id, source: "walkin" })
-      .select("name phone")
-      .lean<{ name: string; phone: string }[]>();
+      .select("name phone invitedBy")
+      .lean<{ name: string; phone: string; invitedBy?: string }[]>();
     for (const w of walkins) {
       const phone = normPhone(w.phone);
       if (!phone || byPhone.has(phone)) continue;
@@ -158,6 +159,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         phone,
         cell: "Walk-in",
         tag: "Walk-in",
+        invitedBy: w.invitedBy || undefined,
         present: present.has(phone),
       });
     }

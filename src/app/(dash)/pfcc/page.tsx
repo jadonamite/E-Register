@@ -11,6 +11,7 @@ import { MagnifyingGlass, Pulse, CalendarBlank, Plus, X } from "@phosphor-icons/
 import { format } from "date-fns";
 import { MarkerBar } from "@/components/MarkerBar";
 import { SyncPill } from "@/components/SyncPill";
+import { serviceMatchesDate, serviceDayName } from "@/lib/service-schedule";
 
 type ProgramTab = { id: string; name: string; serviceLabel: string };
 
@@ -38,7 +39,6 @@ export default function PFCCDashboard() {
   const inProgram = !!activeProgram;
 
   const {
-    filteredMembers,
     signedInIds,
     searchQuery,
     setSearchQuery,
@@ -52,7 +52,8 @@ export default function PFCCDashboard() {
     pending,
     syncing,
     authExpired,
-    syncNow
+    syncNow,
+    memberNames
   } = useMembers(service, date);
 
   const program = useProgramRoster(activeProgram?.id ?? null, date);
@@ -81,6 +82,7 @@ export default function PFCCDashboard() {
   };
 
   const liveCount = inProgram ? program.presentCount : signedInIds.length;
+  const wrongDay = !inProgram && !serviceMatchesDate(service, date);
 
   return (
     <div className="min-h-screen bg-[#FDFBFC] p-6 md:p-12 font-unio max-w-[1600px] mx-auto relative z-0">
@@ -230,11 +232,21 @@ export default function PFCCDashboard() {
             </div>
           </div>
 
+          {wrongDay && (
+            <div className="mb-6 flex items-center gap-3 px-5 py-4 bg-amber-50 border border-amber-200 rounded-2xl">
+              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+              <p className="text-xs font-bold text-amber-800 tracking-tight">
+                {service} attendance can only be marked on a {serviceDayName(service)}. Pick a {serviceDayName(service)} to mark.
+              </p>
+            </div>
+          )}
+
           {inProgram ? (
             <ProgramList
               rows={program.rows}
               canMark={canMark}
               loading={program.loading}
+              memberNames={memberNames}
               onMark={program.markPresent}
               onAddWalkin={program.addWalkin}
             />

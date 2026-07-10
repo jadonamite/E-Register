@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import Member from "@/models/Member";
 import { getSession } from "@/lib/auth";
+import { serviceMatchesISO, serviceDayName } from "@/lib/service-schedule";
 
 const notMarker = () =>
   NextResponse.json({ error: "Sign in as a marker to mark attendance" }, { status: 403 });
@@ -16,6 +17,15 @@ export async function POST(req: Request) {
 
     if (!memberId || !serviceType) {
       return NextResponse.json({ error: "Missing data" }, { status: 400 });
+    }
+
+    // Guard against marking a service on the wrong weekday (defense-in-depth;
+    // the client blocks this first).
+    if (!serviceMatchesISO(serviceType, date)) {
+      return NextResponse.json(
+        { error: `${serviceType} attendance can only be marked on a ${serviceDayName(serviceType)}` },
+        { status: 400 }
+      );
     }
 
     // 1. Find the member first to check for duplicates

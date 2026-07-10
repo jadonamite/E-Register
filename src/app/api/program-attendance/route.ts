@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     if (session?.kind !== "marker") return notMarker();
     await connectDB();
 
-    const { programId, date, phone, name, source, memberId, contactId } = await req.json();
+    const { programId, date, phone, name, source, memberId, contactId, invitedBy } = await req.json();
 
     if (!isValidObjectId(programId)) {
       return NextResponse.json({ error: "Valid programId required" }, { status: 400 });
@@ -60,6 +60,9 @@ export async function POST(req: Request) {
           source,
           ...(isValidObjectId(memberId) ? { memberId } : {}),
           ...(isValidObjectId(contactId) ? { contactId } : {}),
+          ...(typeof invitedBy === "string" && invitedBy.trim()
+            ? { invitedBy: invitedBy.trim().slice(0, 80) }
+            : {}),
           markedBy: session.name,
           markedAt: new Date(),
         },
