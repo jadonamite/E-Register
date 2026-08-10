@@ -28,6 +28,7 @@ import {
   ArrowFatUp,
   X,
   Clock,
+  DownloadSimple,
 } from "@phosphor-icons/react";
 
 type Group = { _id: string; name: string; level: "TEAM" | "SENIOR_CELL" | "CELL"; parentId: string | null };
@@ -605,6 +606,159 @@ function MarkersTab() {
 }
 
 /* ------------------------------------------------------------------ */
+/* Export tab                                                          */
+/* ------------------------------------------------------------------ */
+
+type ExportScope = "all" | "seniorCell" | "cell";
+
+const SCOPES: { id: ExportScope; label: string; icon: React.ReactNode }[] = [
+  { id: "all", label: "Everyone", icon: <UsersThree size={16} weight="bold" /> },
+  { id: "seniorCell", label: "Senior Cell", icon: <Users size={16} weight="bold" /> },
+  { id: "cell", label: "Cell", icon: <User size={16} weight="bold" /> },
+];
+
+/** Downloads the register as CSV — name, cell and phone number, optionally
+ *  narrowed to a single cell or senior cell. */
+function ExportTab() {
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [members, setMembers] = useState<{ cell?: string; seniorCell?: string }[]>([]);
+  const [scope, setScope] = useState<ExportScope>("all");
+  const [value, setValue] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/groups")
+      .then((r) => r.json())
+      .then(setGroups)
+      .catch(() => toast.error("Failed to load structure"));
+    // Only used for the row-count preview; the download itself is server-side.
+    fetch("/api/members")
+      .then((r) => r.json())
+      .then((m) => setMembers(Array.isArray(m) ? m : []))
+      .catch(() => {});
+  }, []);
+
+  // Options are the group names, since that's what a member row stores.
+  const options = useMemo(() => {
+    const level = scope === "cell" ? "CELL" : "SENIOR_CELL";
+    return groups
+      .filter((g) => g.level === level)
+      .map((g) => ({ id: g.name, name: g.name }));
+  }, [groups, scope]);
+
+  const count = useMemo(() => {
+    if (scope === "all") return members.length;
+    if (!value) return 0;
+    return members.filter((m) => (m[scope] || "").toLowerCase() === value.toLowerCase()).length;
+  }, [members, scope, value]);
+
+  const ready = scope === "all" || !!value;
+
+  const download = async () => {
+    if (!ready) return toast.error(`Pick a ${scope === "cell" ? "cell" : "senior cell"} first`);
+    setBusy(true);
+    try {
+      const qs = scope === "all" ? "" : `?scope=${scope}&value=${encodeURIComponent(value)}`;
+      const res = await fetch(`/api/members/export${qs}`);
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: "" }));
+        return toast.error(error || "Export failed");
+      }
+      // Filename comes from the server's Content-Disposition.
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const filename = /filename="(.+?)"/.exec(disposition)?.[1] || "e-register.csv";
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success(`Exported ${filename}`);
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl">
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white border border-zinc-100 rounded-[2rem] p-8 shadow-sm space-y-6"
+      >
+        <div>
+          <h2 className="text-2xl font-black tracking-tight text-zinc-900">Export register</h2>
+          <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400 mt-1.5">
+            Name · Cell · Phone number
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Who to export</Label>
+          <div className="bg-zinc-100 p-1.5 rounded-2xl flex gap-1 w-fit max-w-full overflow-x-auto">
+            {SCOPES.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => {
+                  setScope(s.id);
+                  setValue("");
+                }}
+                className={cn(
+                  "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all flex items-center gap-2",
+                  scope === s.id ? "bg-white text-black shadow-sm" : "text-zinc-400 hover:text-zinc-600"
+                )}
+              >
+                {s.icon}
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {scope !== "all" && (
+          <div className="space-y-2">
+            <Label>{scope === "cell" ? "Cell" : "Senior cell"}</Label>
+            <Picker
+              value={value}
+              options={options}
+              placeholder={scope === "cell" ? "Choose a cell" : "Choose a senior cell"}
+              onSelect={setValue}
+            />
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 px-5 py-4 bg-zinc-50 border border-zinc-100 rounded-2xl">
+          <span
+            className={cn("w-2 h-2 rounded-full shrink-0", count > 0 ? "bg-emerald-400" : "bg-zinc-300")}
+          />
+          <p className="text-xs font-bold text-zinc-500 tracking-tight">
+            {!ready
+              ? `Pick a ${scope === "cell" ? "cell" : "senior cell"} to export`
+              : count === 0
+                ? "Nobody matches this filter yet"
+                : `${count} ${count === 1 ? "person" : "people"} will be exported`}
+          </p>
+        </div>
+
+        <Button
+          onClick={download}
+          disabled={busy || !ready || count === 0}
+          className="w-full h-12 rounded-2xl bg-zinc-950 text-white text-[11px] font-black uppercase tracking-widest hover:bg-black active:scale-[0.98] transition-all shadow-lg disabled:opacity-40 disabled:pointer-events-none"
+        >
+          <DownloadSimple size={16} weight="bold" /> {busy ? "Preparing…" : "Download CSV"}
+        </Button>
+      </motion.div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
 
@@ -641,6 +795,12 @@ export default function AdminPage() {
           >
             <Clock size={16} weight="bold" /> Attendance
           </TabsTrigger>
+          <TabsTrigger
+            value="export"
+            className="rounded-xl px-6 py-2.5 text-[11px] font-black uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm text-zinc-400 flex items-center gap-2"
+          >
+            <DownloadSimple size={16} weight="bold" /> Export
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="structure">
@@ -653,6 +813,9 @@ export default function AdminPage() {
           <div className="max-w-2xl">
             <AttendanceSettings />
           </div>
+        </TabsContent>
+        <TabsContent value="export">
+          <ExportTab />
         </TabsContent>
       </Tabs>
     </div>
