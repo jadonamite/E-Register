@@ -15,6 +15,31 @@ import { serviceMatchesDate, serviceDayName } from "@/lib/service-schedule";
 
 type ProgramTab = { id: string; name: string; serviceLabel: string };
 
+// The program tabs are the only door to the cached program roster: with no
+// tabs there is no program to select, so an offline cold boot would strand a
+// perfectly good IndexedDB roster behind an empty tab bar. /api/* is never
+// service-worker cached, so the list is mirrored here instead. Small and
+// non-sensitive (id + label), so localStorage is enough.
+const PROGRAMS_KEY = "eregister-programs";
+
+function loadCachedPrograms(): ProgramTab[] {
+  try {
+    const raw = localStorage.getItem(PROGRAMS_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCachedPrograms(programs: ProgramTab[]): void {
+  try {
+    localStorage.setItem(PROGRAMS_KEY, JSON.stringify(programs));
+  } catch {
+    // storage unavailable — non-fatal
+  }
+}
+
 export default function PFCCDashboard() {
   const [service, setService] = useState("Sunday");
   const [activeProgram, setActiveProgram] = useState<ProgramTab | null>(null);
@@ -29,11 +54,26 @@ export default function PFCCDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Program tabs render beside Sunday/Mid-Week; each active program is a button.
+  // Cached list first so the tabs (and the roster behind them) survive an
+  // offline boot; the network answer then replaces it.
   useEffect(() => {
+    // Must be an effect, not a lazy initialiser: localStorage doesn't exist
+    // during SSR, and seeding state from it on the client alone would
+    // hydration-mismatch the empty server render.
+    const cached = loadCachedPrograms();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (cached.length) setPrograms(cached);
+
     fetch("/api/programs")
-      .then((r) => (r.ok ? r.json() : []))
-      .then(setPrograms)
-      .catch(() => {});
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!Array.isArray(data)) return;
+        setPrograms(data);
+        saveCachedPrograms(data);
+      })
+      .catch(() => {
+        // Offline — keep whatever was cached.
+      });
   }, []);
 
   const inProgram = !!activeProgram;
@@ -92,10 +132,13 @@ export default function PFCCDashboard() {
         <div className="flex flex-wrap items-center justify-center gap-3 w-full lg:w-auto">
           <SyncPill
             online={online}
-            pending={pending}
-            syncing={syncing}
-            authExpired={authExpired}
-            onSync={syncNow}
+            pending={pending + program.pending}
+            syncing={syncing || program.syncing}
+            authExpired={authExpired || program.authExpired}
+            onSync={() => {
+              syncNow();
+              program.syncNow();
+            }}
           />
           <div className="relative group flex-1 min-w-[150px] lg:flex-none">
             <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">

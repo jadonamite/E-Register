@@ -1,19 +1,26 @@
 // Minimal, dependency-free IndexedDB wrapper for offline support.
 //
-// Two stores:
-//   roster  — a single cached snapshot of the member list (key "members")
-//   outbox  — pending attendance writes, keyed by memberId|service|date
+// Stores:
+//   roster        — a single cached snapshot of the member list (key "members")
+//   outbox        — pending attendance writes, keyed by memberId|service|date
+//   memberOutbox  — pending member mutations, keyed by memberId
+//   programRoster — cached program roster identity (who exists), keyed by programId
+//   programDay    — present phones for a program day, keyed programId|dateStr
+//   programOutbox — pending program marks, keyed programId|phone|dateStr
 //
 // Everything is best-effort: on any environment without IndexedDB (SSR,
 // private-mode edge cases) the helpers resolve to null / no-op so callers can
 // fall straight through to the network.
 
 const DB_NAME = "eregister-offline";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 export const ROSTER_STORE = "roster";
 export const OUTBOX_STORE = "outbox";
 export const MEMBER_OUTBOX_STORE = "memberOutbox";
+export const PROGRAM_ROSTER_STORE = "programRoster";
+export const PROGRAM_DAY_STORE = "programDay";
+export const PROGRAM_OUTBOX_STORE = "programOutbox";
 export const ROSTER_KEY = "members";
 
 export type OutboxOp = "mark" | "unmark";
@@ -48,6 +55,38 @@ export interface RosterSnapshot {
   cachedAt: number;
 }
 
+// A queued program check-in/undo. Carries the full POST payload so a walk-in
+// created offline needs nothing beyond its own queue item to sync.
+export interface ProgramOutboxItem {
+  id: string; // `${programId}|${phone}|${dateStr}` — phone already normalised
+  op: OutboxOp;
+  programId: string;
+  phone: string;
+  dateStr: string; // toDateString() — the calendar day the mark belongs to
+  dateISO: string; // exact ISO sent to the API
+  name: string;
+  source: "member" | "contact" | "walkin";
+  memberId?: string;
+  contactId?: string;
+  invitedBy?: string;
+  createdAt: number;
+}
+
+// Roster identity for a program — rows stripped of `present`, which is
+// per-date and cached separately so switching dates offline still shows
+// everyone we know about.
+export interface ProgramRosterSnapshot {
+  programId: string;
+  rows: any[];
+  cachedAt: number;
+}
+
+export interface ProgramDaySnapshot {
+  key: string; // `${programId}|${dateStr}`
+  presentPhones: string[];
+  cachedAt: number;
+}
+
 let dbPromise: Promise<IDBDatabase> | null = null;
 
 function hasIDB(): boolean {
@@ -68,6 +107,15 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(MEMBER_OUTBOX_STORE)) {
         db.createObjectStore(MEMBER_OUTBOX_STORE, { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains(PROGRAM_ROSTER_STORE)) {
+        db.createObjectStore(PROGRAM_ROSTER_STORE, { keyPath: "programId" });
+      }
+      if (!db.objectStoreNames.contains(PROGRAM_DAY_STORE)) {
+        db.createObjectStore(PROGRAM_DAY_STORE, { keyPath: "key" });
+      }
+      if (!db.objectStoreNames.contains(PROGRAM_OUTBOX_STORE)) {
+        db.createObjectStore(PROGRAM_OUTBOX_STORE, { keyPath: "id" });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -176,6 +224,101 @@ export async function allMemberOutbox(): Promise<MemberOutboxItem[]> {
   if (!hasIDB()) return [];
   try {
     const items = await tx<MemberOutboxItem[]>(MEMBER_OUTBOX_STORE, "readonly", (s) => s.getAll());
+    return items ?? [];
+  } catch {
+    return [];
+  }
+}
+
+// ---- Program roster cache ------------------------------------------------
+
+export async function saveProgramRoster(programId: string, rows: any[]): Promise<void> {
+  if (!hasIDB()) return;
+  try {
+    const snapshot: ProgramRosterSnapshot = { programId, rows, cachedAt: Date.now() };
+    await tx(PROGRAM_ROSTER_STORE, "readwrite", (s) => s.put(snapshot));
+  } catch {
+    // storage full / unavailable — non-fatal
+  }
+}
+
+export async function loadProgramRoster(programId: string): Promise<ProgramRosterSnapshot | null> {
+  if (!hasIDB()) return null;
+  try {
+    const snap = await tx<ProgramRosterSnapshot | undefined>(PROGRAM_ROSTER_STORE, "readonly", (s) =>
+      s.get(programId)
+    );
+    return snap ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function programDayKey(programId: string, dateStr: string): string {
+  return `${programId}|${dateStr}`;
+}
+
+export async function saveProgramDay(
+  programId: string,
+  dateStr: string,
+  presentPhones: string[]
+): Promise<void> {
+  if (!hasIDB()) return;
+  try {
+    const snapshot: ProgramDaySnapshot = {
+      key: programDayKey(programId, dateStr),
+      presentPhones,
+      cachedAt: Date.now(),
+    };
+    await tx(PROGRAM_DAY_STORE, "readwrite", (s) => s.put(snapshot));
+  } catch {
+    // non-fatal
+  }
+}
+
+export async function loadProgramDay(
+  programId: string,
+  dateStr: string
+): Promise<ProgramDaySnapshot | null> {
+  if (!hasIDB()) return null;
+  try {
+    const snap = await tx<ProgramDaySnapshot | undefined>(PROGRAM_DAY_STORE, "readonly", (s) =>
+      s.get(programDayKey(programId, dateStr))
+    );
+    return snap ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ---- Program outbox -------------------------------------------------------
+
+export async function putProgramOutbox(item: ProgramOutboxItem): Promise<void> {
+  if (!hasIDB()) return;
+  await tx(PROGRAM_OUTBOX_STORE, "readwrite", (s) => s.put(item));
+}
+
+export async function getProgramOutboxItem(id: string): Promise<ProgramOutboxItem | null> {
+  if (!hasIDB()) return null;
+  try {
+    const item = await tx<ProgramOutboxItem | undefined>(PROGRAM_OUTBOX_STORE, "readonly", (s) =>
+      s.get(id)
+    );
+    return item ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteProgramOutbox(id: string): Promise<void> {
+  if (!hasIDB()) return;
+  await tx(PROGRAM_OUTBOX_STORE, "readwrite", (s) => s.delete(id));
+}
+
+export async function allProgramOutbox(): Promise<ProgramOutboxItem[]> {
+  if (!hasIDB()) return [];
+  try {
+    const items = await tx<ProgramOutboxItem[]>(PROGRAM_OUTBOX_STORE, "readonly", (s) => s.getAll());
     return items ?? [];
   } catch {
     return [];

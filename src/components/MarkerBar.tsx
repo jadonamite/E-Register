@@ -19,6 +19,33 @@ import { cn } from "@/lib/utils";
 type Identity = { kind: "marker"; name: string } | { kind: "exec" } | { kind: null };
 type MarkerOption = { _id: string; name: string; active: boolean };
 
+// Last identity the server confirmed. The session lives in an httpOnly cookie
+// the client can't read, so this is how the app knows who you are while
+// offline — without it a cold offline boot downgrades a signed-in marker to
+// view-only and no attendance can be taken. Only an explicit signed-out answer
+// from the server (or signing out) clears it; a network failure never does.
+const IDENTITY_KEY = "eregister-identity";
+
+function loadCachedIdentity(): Identity | null {
+  try {
+    const raw = localStorage.getItem(IDENTITY_KEY);
+    if (!raw) return null;
+    const id = JSON.parse(raw);
+    return id?.kind ? (id as Identity) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveCachedIdentity(identity: Identity): void {
+  try {
+    if (identity.kind) localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity));
+    else localStorage.removeItem(IDENTITY_KEY);
+  } catch {
+    // storage unavailable — non-fatal
+  }
+}
+
 export function MarkerBar({
   onIdentityChange,
 }: {
@@ -38,10 +65,22 @@ export function MarkerBar({
   };
 
   useEffect(() => {
+    // Cached identity first so a marker stays a marker on an offline boot;
+    // the server answer then confirms or revokes it.
+    const cached = loadCachedIdentity();
+    if (cached) report(cached);
+
     fetch("/api/auth/me")
       .then((r) => r.json())
-      .then((data) => report(data))
-      .catch(() => report({ kind: null }));
+      .then((data: Identity) => {
+        report(data);
+        saveCachedIdentity(data);
+      })
+      .catch(() => {
+        // Network unreachable — keep the cached identity; queued marks are
+        // still auth-checked server-side when the outbox drains.
+        if (!cached) report({ kind: null });
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -54,7 +93,11 @@ export function MarkerBar({
       setPin("");
       setOpen(true);
     } catch {
-      toast.error("Could not load markers");
+      toast.error(
+        navigator.onLine === false
+          ? "You're offline — signing in needs a connection"
+          : "Could not load markers"
+      );
     }
   };
 
@@ -75,6 +118,7 @@ export function MarkerBar({
       }
       const { name } = await res.json();
       report({ kind: "marker", name });
+      saveCachedIdentity({ kind: "marker", name });
       toast.success(`Signed in — marking as ${name}`);
       setOpen(false);
     } catch {
@@ -89,6 +133,7 @@ export function MarkerBar({
       await fetch("/api/auth/logout", { method: "POST" });
     } finally {
       report({ kind: null });
+      saveCachedIdentity({ kind: null });
       toast.info("Signed out — view only");
     }
   };

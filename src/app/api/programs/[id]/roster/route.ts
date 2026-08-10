@@ -69,6 +69,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     const url = new URL(req.url);
     const search = (url.searchParams.get("search") || "").toLowerCase().trim();
     const searchDigits = search.replace(/\D/g, "");
+    const full = url.searchParams.get("full") === "1";
     const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
     const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get("limit") || "100", 10)));
     const { start, end } = dayRange(url.searchParams.get("date"));
@@ -175,7 +176,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     }
     const total = rows.length;
     const presentCount = rows.filter((r) => r.present).length;
-    const paged = rows.slice((page - 1) * limit, page * limit);
+    // The roster is already fully joined in memory, so returning it whole costs
+    // nothing extra — clients cache it and search locally (offline support).
+    const paged = full ? rows : rows.slice((page - 1) * limit, page * limit);
 
     return NextResponse.json(
       {
