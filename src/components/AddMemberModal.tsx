@@ -16,6 +16,8 @@ interface AddMemberModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   initialData?: any;
+  // Seeds a fresh entry's name (opened from a search that found nobody).
+  prefillName?: string;
 }
 
 export const AddMemberModal = ({
@@ -23,7 +25,8 @@ export const AddMemberModal = ({
   onDelete,
   isOpen,
   onOpenChange,
-  initialData
+  initialData,
+  prefillName
 }: AddMemberModalProps) => {
   const confirm = useConfirm();
   const [mode, setMode] = useState("existing");
@@ -158,9 +161,9 @@ export const AddMemberModal = ({
                   transition={{ duration: 0.2 }}
                 >
                   {mode === "existing" ? (
-                    <ExistingForm onSubmit={handleSuccess} initialData={initialData} saving={saving} onDirtyChange={setIsDirty} />
+                    <ExistingForm onSubmit={handleSuccess} initialData={initialData} saving={saving} onDirtyChange={setIsDirty} prefillName={prefillName} />
                   ) : (
-                    <FirstTimerForm onSubmit={handleSuccess} saving={saving} onDirtyChange={setIsDirty} />
+                    <FirstTimerForm onSubmit={handleSuccess} saving={saving} onDirtyChange={setIsDirty} prefillName={prefillName} />
                   )}
                 </motion.div>
               </AnimatePresence>

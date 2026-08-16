@@ -1,10 +1,11 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, PencilSimple, ArrowCircleUp } from "@phosphor-icons/react";
+import { Check, PencilSimple, ArrowCircleUp, Plus } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
-export const MemberList = ({ members = [], signedInIds = [], onMarkPresent, onEdit, onPromote, canMark = true }: any) => {
+export const MemberList = ({ members = [], signedInIds = [], onMarkPresent, onEdit, onPromote, canMark = true, searchQuery = "", onAddNew }: any) => {
+  const query = searchQuery.trim();
   const getRoleStyle = (role: string) => {
     switch (role) {
       case "Pastor": return "bg-amber-100 text-amber-700 border-amber-200";
@@ -96,8 +97,23 @@ export const MemberList = ({ members = [], signedInIds = [], onMarkPresent, onEd
       </AnimatePresence>
       
       {members.length === 0 && (
-        <div className="text-center py-20 opacity-20">
-          <p className="text-sm font-black uppercase tracking-[0.3em]">Registry Empty</p>
+        <div className="text-center py-20 flex flex-col items-center gap-6">
+          <p className="text-sm font-black uppercase tracking-[0.3em] opacity-20">
+            {query ? "No Match" : "Registry Empty"}
+          </p>
+
+          {/* The floating add button is hidden during a search (it sits on top of
+              the rows' mark buttons), so the add path lives here instead — and
+              it can carry the typed name straight into the form. */}
+          {query && canMark && onAddNew && (
+            <button
+              onClick={() => onAddNew(query)}
+              className="flex items-center gap-2 px-6 py-3.5 rounded-full bg-black text-white text-[10px] font-black uppercase tracking-widest shadow-lg hover:scale-105 active:scale-95 transition-all max-w-full"
+            >
+              <Plus size={16} weight="bold" className="shrink-0" />
+              <span className="truncate">Add “{query}” as new</span>
+            </button>
+          )}
         </div>
       )}
     </div>

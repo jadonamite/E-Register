@@ -46,11 +46,13 @@ type FormProps = {
   onSubmit: (data: any) => void;
   saving?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
+  // Name carried over from a fruitless search, so the entry isn't retyped.
+  prefillName?: string;
 };
 
-export const ExistingForm = ({ onSubmit, initialData, saving, onDirtyChange }: FormProps & { initialData?: any }) => {
+export const ExistingForm = ({ onSubmit, initialData, saving, onDirtyChange, prefillName }: FormProps & { initialData?: any }) => {
   const [form, setForm] = useState(initialData || {
-    name: "", phone: "", sex: "Male", cell: "", seniorCell: "", team: "", schoolDept: "", churchDept: "", level: "", role: "Member", status: "Member"
+    name: prefillName || "", phone: "", sex: "Male", cell: "", seniorCell: "", team: "", schoolDept: "", churchDept: "", level: "", role: "Member", status: "Member"
   });
   const [dropdowns, setDropdowns] = useState({ cell: false, role: false });
   const [hierarchy, setHierarchy] = useState<CellRow[]>([]);
@@ -206,9 +208,9 @@ export const ExistingForm = ({ onSubmit, initialData, saving, onDirtyChange }: F
   );
 };
 
-export const FirstTimerForm = ({ onSubmit, saving, onDirtyChange }: FormProps) => {
+export const FirstTimerForm = ({ onSubmit, saving, onDirtyChange, prefillName }: FormProps) => {
   const [form, setForm] = useState({
-    name: "", sex: "Male", birthday: "", schoolDept: "", level: "", address: "",
+    name: prefillName || "", sex: "Male", birthday: "", schoolDept: "", level: "", address: "",
     phone: "", email: "", invitedBy: "", isMember: "No", visitDate: "", status: "FirstTimer"
   });
 

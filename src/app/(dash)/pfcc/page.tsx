@@ -52,6 +52,8 @@ export default function PFCCDashboard() {
 
   const [editingMember, setEditingMember] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  // Name seeded from a search that returned nobody; cleared on every other open.
+  const [prefillName, setPrefillName] = useState("");
 
   // Program tabs render beside Sunday/Mid-Week; each active program is a button.
   // Cached list first so the tabs (and the roster behind them) survive an
@@ -102,16 +104,19 @@ export default function PFCCDashboard() {
 
   const handleEditInitiated = (member: any) => {
     setEditingMember(member);
+    setPrefillName("");
     setIsModalOpen(true);
   };
 
-  const handleAddNew = () => {
+  const handleAddNew = (name = "") => {
     setEditingMember(null);
+    setPrefillName(name);
     setIsModalOpen(true);
   };
 
   const handlePromote = (member: any) => {
     setEditingMember({ ...member, status: "Member" });
+    setPrefillName("");
     setIsModalOpen(true);
   };
 
@@ -124,8 +129,10 @@ export default function PFCCDashboard() {
   const liveCount = inProgram ? program.presentCount : signedInIds.length;
   const wrongDay = !inProgram && !serviceMatchesDate(service, date);
 
+  // The page's bottom padding clears the floating add button so it can never
+  // sit on top of the last row's mark button.
   return (
-    <div className="min-h-screen bg-[#FDFBFC] p-6 md:p-12 font-unio max-w-[1600px] mx-auto relative z-0">
+    <div className="min-h-screen bg-[#FDFBFC] p-6 pb-32 md:p-12 md:pb-40 font-unio max-w-[1600px] mx-auto relative z-0">
       <header className="flex flex-col lg:flex-row justify-between items-center gap-6 lg:gap-8 mb-10 lg:mb-12">
         <Logo />
 
@@ -301,6 +308,8 @@ export default function PFCCDashboard() {
               onEdit={handleEditInitiated}
               onPromote={handlePromote}
               canMark={canMark}
+              searchQuery={searchQuery}
+              onAddNew={handleAddNew}
             />
           )}
         </div>
@@ -331,6 +340,7 @@ export default function PFCCDashboard() {
           isOpen={isModalOpen}
           onOpenChange={setIsModalOpen}
           initialData={editingMember}
+          prefillName={prefillName}
           onAdd={async (data) => {
             if (editingMember) {
               await updateMember(data);
@@ -341,9 +351,13 @@ export default function PFCCDashboard() {
           onDelete={deleteMember}
         />
 
-        {!isModalOpen && canMark && !inProgram && (
+        {/* Hidden while a search is running: the button is anchored in the same
+            bottom-right gutter as each row's mark button, and a search narrows
+            the list to a handful of rows that land right under it. During a
+            search the add path is the "no match" button inside the list. */}
+        {!isModalOpen && canMark && !inProgram && !searchQuery.trim() && (
           <button
-            onClick={handleAddNew}
+            onClick={() => handleAddNew()}
             className="w-20 h-20 rounded-full bg-black text-white flex items-center justify-center shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:scale-110 active:scale-90 transition-all"
           >
             <Plus size={36} weight="bold" />
