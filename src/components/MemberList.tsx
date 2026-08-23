@@ -3,8 +3,9 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, PencilSimple, ArrowCircleUp, Plus } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
+import { resolveMemberWindow } from "@/lib/service-schedule";
 
-export const MemberList = ({ members = [], signedInIds = [], onMarkPresent, onEdit, onPromote, canMark = true, searchQuery = "", onAddNew }: any) => {
+export const MemberList = ({ members = [], signedInIds = [], onMarkPresent, onEdit, onPromote, canMark = true, searchQuery = "", onAddNew, sundaySession = null }: any) => {
   const query = searchQuery.trim();
   const getRoleStyle = (role: string) => {
     switch (role) {
@@ -49,6 +50,19 @@ export const MemberList = ({ members = [], signedInIds = [], onMarkPresent, onEd
                     )}>
                       {member.role}
                     </span>
+                    {(() => {
+                      const badge = resolveMemberWindow(member, sundaySession);
+                      if (!badge) return null;
+                      return badge.kind === "home" ? (
+                        <span className="px-2 py-0.5 bg-sky-100/50 rounded-md text-[8px] font-black uppercase tracking-widest text-sky-700 border border-sky-200/50">
+                          {badge.window.team} · {badge.window.start}–{badge.window.end ?? "end"}
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-amber-100/50 rounded-md text-[8px] font-black uppercase tracking-widest text-amber-700 border border-amber-200/50">
+                          Crossing over from {badge.memberTeam}
+                        </span>
+                      );
+                    })()}
                   </>
                 )}
               </div>

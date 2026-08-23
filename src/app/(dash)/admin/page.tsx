@@ -31,8 +31,21 @@ import {
   DownloadSimple,
 } from "@phosphor-icons/react";
 
-type Group = { _id: string; name: string; level: "TEAM" | "SENIOR_CELL" | "CELL"; parentId: string | null };
+type HierarchyLevel = "ZONE" | "GROUP" | "CHAPTER" | "PCF" | "TEAM" | "SENIOR_CELL" | "CELL";
+type HierarchyNode = { _id: string; name: string; level: HierarchyLevel; parentId: string | null; code?: string | null };
 type Marker = { _id: string; name: string; active: boolean };
+
+// Top-to-bottom order of the chain, with the display label + accent color for
+// each tier's rows and create-form.
+const LEVEL_CONFIG: { level: HierarchyLevel; label: string; parentLevel: HierarchyLevel | null; dot: string }[] = [
+  { level: "ZONE", label: "Zone", parentLevel: null, dot: "bg-violet-400" },
+  { level: "GROUP", label: "Group", parentLevel: "ZONE", dot: "bg-blue-400" },
+  { level: "CHAPTER", label: "Chapter", parentLevel: "GROUP", dot: "bg-cyan-400" },
+  { level: "PCF", label: "PCF", parentLevel: "CHAPTER", dot: "bg-teal-400" },
+  { level: "TEAM", label: "Team", parentLevel: "PCF", dot: "bg-indigo-400" },
+  { level: "SENIOR_CELL", label: "Senior Cell", parentLevel: "TEAM", dot: "bg-emerald-400" },
+  { level: "CELL", label: "Cell", parentLevel: "SENIOR_CELL", dot: "bg-pink-400" },
+];
 
 /* ---- shared premium primitives (match pfcc / exec aesthetic) ---- */
 
@@ -115,50 +128,67 @@ function Picker({
 
 function StructureTab() {
   const confirm = useConfirm();
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [teamName, setTeamName] = useState("");
-  const [scName, setScName] = useState("");
-  const [scParent, setScParent] = useState("");
-  const [cellName, setCellName] = useState("");
-  const [cellParent, setCellParent] = useState("");
+  const [nodes, setNodes] = useState<HierarchyNode[]>([]);
+  // One name + parent draft per level, keyed by level.
+  const [drafts, setDrafts] = useState<Record<HierarchyLevel, { name: string; parentId: string; code: string }>>(
+    () =>
+      Object.fromEntries(
+        LEVEL_CONFIG.map((c) => [c.level, { name: "", parentId: "", code: "" }])
+      ) as Record<HierarchyLevel, { name: string; parentId: string; code: string }>
+  );
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [reparenting, setReparenting] = useState<HierarchyNode | null>(null);
 
   const load = () =>
-    fetch("/api/groups").then((r) => r.json()).then(setGroups).catch(() => toast.error("Failed to load structure"));
+    fetch("/api/hierarchy").then((r) => r.json()).then(setNodes).catch(() => toast.error("Failed to load structure"));
 
   useEffect(() => {
     load();
   }, []);
 
-  const teams = useMemo(() => groups.filter((g) => g.level === "TEAM"), [groups]);
-  const seniorCells = useMemo(() => groups.filter((g) => g.level === "SENIOR_CELL"), [groups]);
-  const cells = useMemo(() => groups.filter((g) => g.level === "CELL"), [groups]);
+  const byLevel = useMemo(() => {
+    const map = new Map<HierarchyLevel, HierarchyNode[]>();
+    for (const c of LEVEL_CONFIG) map.set(c.level, nodes.filter((n) => n.level === c.level));
+    return map;
+  }, [nodes]);
 
-  const create = async (name: string, level: Group["level"], parentId: string | null, reset: () => void) => {
-    if (!name.trim()) return toast.error("Enter a name");
+  const setDraft = (level: HierarchyLevel, patch: Partial<{ name: string; parentId: string; code: string }>) =>
+    setDrafts((prev) => ({ ...prev, [level]: { ...prev[level], ...patch } }));
+
+  const create = async (level: HierarchyLevel) => {
+    const draft = drafts[level];
+    const config = LEVEL_CONFIG.find((c) => c.level === level)!;
+    if (!draft.name.trim()) return toast.error("Enter a name");
+    if (config.parentLevel && !draft.parentId) return toast.error(`Pick a ${config.parentLevel.replace("_", " ").toLowerCase()} first`);
     try {
-      const res = await fetch("/api/groups", {
+      const res = await fetch("/api/hierarchy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, level, parentId }),
+        body: JSON.stringify({
+          name: draft.name,
+          level,
+          parentId: config.parentLevel ? draft.parentId : null,
+          code: level === "TEAM" ? draft.code : undefined,
+        }),
       });
       if (!res.ok) {
         const { error } = await res.json().catch(() => ({ error: "" }));
         return toast.error(error || "Failed to create");
       }
-      toast.success(`${name} added`);
-      reset();
+      toast.success(`${draft.name} added`);
+      setDraft(level, { name: "", code: "" });
       load();
     } catch {
       toast.error("Network error");
     }
   };
 
-  const rename = async (g: Group, name: string) => {
+  const rename = async (n: HierarchyNode, name: string) => {
     try {
-      const res = await fetch("/api/groups", {
+      const res = await fetch("/api/hierarchy", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ _id: g._id, name }),
+        body: JSON.stringify({ _id: n._id, name }),
       });
       if (!res.ok) {
         const { error } = await res.json().catch(() => ({ error: "" }));
@@ -171,133 +201,142 @@ function StructureTab() {
     }
   };
 
-  const promote = async (g: Group) => {
-    const target = g.level === "CELL" ? "Senior Cell" : g.level === "SENIOR_CELL" ? "Team" : null;
+  const promote = async (n: HierarchyNode) => {
+    const idx = LEVEL_ORDER_LOCAL.indexOf(n.level);
+    const target = idx > 0 ? LEVEL_CONFIG.find((c) => c.level === LEVEL_ORDER_LOCAL[idx - 1])?.label : null;
     if (!target) return toast.error("Already at the top level");
     const ok = await confirm({
-      title: `Promote ${g.name}?`,
+      title: `Promote ${n.name}?`,
       message: `This lifts it up to a ${target}.`,
       confirmText: "Promote",
     });
     if (!ok) return;
     try {
-      const res = await fetch("/api/groups", {
+      const res = await fetch("/api/hierarchy", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ _id: g._id, promote: true }),
+        body: JSON.stringify({ _id: n._id, promote: true }),
       });
       if (!res.ok) {
         const { error } = await res.json().catch(() => ({ error: "" }));
         return toast.error(error || "Failed to promote");
       }
-      toast.success(`${g.name} promoted to ${target}`);
+      toast.success(`${n.name} promoted to ${target}`);
       load();
     } catch {
       toast.error("Network error");
     }
   };
 
-  const remove = async (g: Group) => {
+  const reparent = async (n: HierarchyNode, newParentId: string) => {
+    try {
+      const res = await fetch("/api/hierarchy", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ _id: n._id, newParentId }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: "" }));
+        return toast.error(error || "Failed to move");
+      }
+      toast.success(`${n.name} moved`);
+      setReparenting(null);
+      load();
+    } catch {
+      toast.error("Network error");
+    }
+  };
+
+  const remove = async (n: HierarchyNode) => {
     const ok = await confirm({
-      title: `Delete ${g.name}?`,
+      title: `Delete ${n.name}?`,
       message: "This removes it from the structure. This cannot be undone.",
       tone: "danger",
       confirmText: "Delete",
     });
     if (!ok) return;
     try {
-      const res = await fetch("/api/groups", {
+      const res = await fetch("/api/hierarchy", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ _id: g._id }),
+        body: JSON.stringify({ _id: n._id }),
       });
       if (!res.ok) {
         const { error } = await res.json().catch(() => ({ error: "" }));
         return toast.error(error || "Failed to delete");
       }
-      toast.info(`${g.name} removed`);
+      toast.info(`${n.name} removed`);
       load();
     } catch {
       toast.error("Network error");
     }
   };
 
-  const cards = [
-    {
-      icon: <UsersThree size={20} weight="duotone" className="text-indigo-500" />,
-      title: "New Team",
-      body: (
-        <>
-          <Label>Team name</Label>
-          <Input className={inputCls} value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="The Winning Team" />
-          <AddButton onClick={() => create(teamName, "TEAM", null, () => setTeamName(""))}>Add Team</AddButton>
-        </>
-      ),
-    },
-    {
-      icon: <Users size={20} weight="duotone" className="text-emerald-500" />,
-      title: "New Senior Cell",
-      body: (
-        <>
-          <Label>Under team</Label>
-          <Picker value={scParent} placeholder="Select team…" onSelect={setScParent} options={teams.map((t) => ({ id: t._id, name: t.name }))} />
-          <Label>Senior cell name</Label>
-          <Input className={inputCls} value={scName} onChange={(e) => setScName(e.target.value)} placeholder="Harvesters" />
-          <AddButton
-            onClick={() => {
-              if (!scParent) return toast.error("Pick a team first");
-              create(scName, "SENIOR_CELL", scParent, () => setScName(""));
-            }}
-          >
-            Add Senior Cell
-          </AddButton>
-        </>
-      ),
-    },
-    {
-      icon: <User size={20} weight="duotone" className="text-pink-500" />,
-      title: "New Cell",
-      body: (
-        <>
-          <Label>Under senior cell</Label>
-          <Picker value={cellParent} placeholder="Select senior cell…" onSelect={setCellParent} options={seniorCells.map((sc) => ({ id: sc._id, name: sc.name }))} />
-          <Label>Cell name</Label>
-          <Input className={inputCls} value={cellName} onChange={(e) => setCellName(e.target.value)} placeholder="Marvelous" />
-          <AddButton
-            onClick={() => {
-              if (!cellParent) return toast.error("Pick a senior cell first");
-              create(cellName, "CELL", cellParent, () => setCellName(""));
-            }}
-          >
-            Add Cell
-          </AddButton>
-        </>
-      ),
-    },
-  ];
+  const toggleExpanded = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const zones = byLevel.get("ZONE") ?? [];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-      {/* Builders */}
+      {/* Builders — one card per tier, top to bottom */}
       <div className="lg:col-span-2 space-y-5">
-        {cards.map((c, i) => (
-          <motion.div
-            key={c.title}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.06 }}
-            className="bento-card p-6 flex flex-col gap-3"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              {c.icon}
-              <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900">{c.title}</h3>
-            </div>
-            {c.body}
-          </motion.div>
-        ))}
+        {LEVEL_CONFIG.map((config, i) => {
+          const draft = drafts[config.level];
+          const parentOptions = config.parentLevel ? byLevel.get(config.parentLevel) ?? [] : [];
+          return (
+            <motion.div
+              key={config.level}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+              className="bento-card p-6 flex flex-col gap-3"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`w-2.5 h-2.5 rounded-full ${config.dot}`} />
+                <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900">New {config.label}</h3>
+              </div>
+              {config.parentLevel && (
+                <>
+                  <Label>Under {config.parentLevel.replace("_", " ").toLowerCase()}</Label>
+                  <Picker
+                    value={draft.parentId}
+                    placeholder={`Select ${config.parentLevel.replace("_", " ").toLowerCase()}…`}
+                    onSelect={(id) => setDraft(config.level, { parentId: id })}
+                    options={parentOptions.map((p) => ({ id: p._id, name: p.name }))}
+                  />
+                </>
+              )}
+              <Label>{config.label} name</Label>
+              <Input
+                className={inputCls}
+                value={draft.name}
+                onChange={(e) => setDraft(config.level, { name: e.target.value })}
+                placeholder={`e.g. ${config.label}`}
+              />
+              {config.level === "TEAM" && (
+                <>
+                  <Label>Code (optional — for service scheduling, e.g. PS, BG)</Label>
+                  <Input
+                    className={inputCls}
+                    value={draft.code}
+                    onChange={(e) => setDraft(config.level, { code: e.target.value.toUpperCase() })}
+                    placeholder="PS"
+                  />
+                </>
+              )}
+              <AddButton onClick={() => create(config.level)}>Add {config.label}</AddButton>
+            </motion.div>
+          );
+        })}
       </div>
 
-      {/* Tree */}
+      {/* Tree — collapsible, one level at a time */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -305,31 +344,157 @@ function StructureTab() {
         className="lg:col-span-3 bento-card p-8"
       >
         <h3 className="text-sm font-black uppercase tracking-widest text-zinc-400 mb-6">Structure</h3>
-        {teams.length === 0 && (
-          <p className="text-center py-20 text-sm font-black uppercase tracking-[0.3em] opacity-20">No teams yet</p>
+        {zones.length === 0 && (
+          <p className="text-center py-20 text-sm font-black uppercase tracking-[0.3em] opacity-20">No zones yet</p>
         )}
-        <div className="space-y-6">
+        <div className="space-y-4">
           <AnimatePresence>
-            {teams.map((team) => (
-              <motion.div key={team._id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <Row label={team.name} tint="indigo" onRename={(n) => rename(team, n)} onDelete={() => remove(team)} />
-                <div className="ml-5 border-l-2 border-zinc-100 pl-4 mt-2 space-y-2">
-                  {seniorCells.filter((sc) => sc.parentId === team._id).map((sc) => (
-                    <div key={sc._id}>
-                      <Row label={sc.name} tint="emerald" small onRename={(n) => rename(sc, n)} onPromote={() => promote(sc)} onDelete={() => remove(sc)} />
-                      <div className="ml-5 border-l-2 border-zinc-100 pl-4 mt-1.5 space-y-1.5">
-                        {cells.filter((c) => c.parentId === sc._id).map((c) => (
-                          <Row key={c._id} label={c.name} tint="pink" small onRename={(n) => rename(c, n)} onPromote={() => promote(c)} onDelete={() => remove(c)} />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
+            {zones.map((zone) => (
+              <NodeBranch
+                key={zone._id}
+                node={zone}
+                byLevel={byLevel}
+                expanded={expanded}
+                onToggle={toggleExpanded}
+                onRename={rename}
+                onPromote={promote}
+                onDelete={remove}
+                onReparent={(n) => setReparenting(n)}
+              />
             ))}
           </AnimatePresence>
         </div>
       </motion.div>
+
+      {reparenting && (
+        <ReparentDialog
+          node={reparenting}
+          options={(byLevel.get(LEVEL_CONFIG.find((c) => c.level === reparenting.level)!.parentLevel!) ?? []).filter(
+            (p) => p._id !== reparenting.parentId
+          )}
+          onCancel={() => setReparenting(null)}
+          onConfirm={(parentId) => reparent(reparenting, parentId)}
+        />
+      )}
+    </div>
+  );
+}
+
+const LEVEL_ORDER_LOCAL: HierarchyLevel[] = LEVEL_CONFIG.map((c) => c.level);
+
+/** One node in the accordion tree, recursing into its children when expanded. */
+function NodeBranch({
+  node,
+  byLevel,
+  expanded,
+  onToggle,
+  onRename,
+  onPromote,
+  onDelete,
+  onReparent,
+  depth = 0,
+}: {
+  node: HierarchyNode;
+  byLevel: Map<HierarchyLevel, HierarchyNode[]>;
+  expanded: Set<string>;
+  onToggle: (id: string) => void;
+  onRename: (n: HierarchyNode, name: string) => void;
+  onPromote: (n: HierarchyNode) => void;
+  onDelete: (n: HierarchyNode) => void;
+  onReparent: (n: HierarchyNode) => void;
+  depth?: number;
+}) {
+  const idx = LEVEL_ORDER_LOCAL.indexOf(node.level);
+  const childLevel = LEVEL_ORDER_LOCAL[idx + 1];
+  const children = childLevel ? (byLevel.get(childLevel) ?? []).filter((c) => c.parentId === node._id) : [];
+  const config = LEVEL_CONFIG.find((c) => c.level === node.level)!;
+  const isOpen = expanded.has(node._id);
+
+  return (
+    <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <div className="flex items-center gap-1">
+        {children.length > 0 || childLevel ? (
+          <button
+            onClick={() => onToggle(node._id)}
+            className="w-6 h-6 shrink-0 flex items-center justify-center text-zinc-400 hover:text-zinc-900"
+          >
+            <CaretDown size={13} weight="bold" className={cn("transition-transform", isOpen && "rotate-180")} />
+          </button>
+        ) : (
+          <span className="w-6 shrink-0" />
+        )}
+        <div className="flex-1">
+          <Row
+            label={node.code ? `${node.name} (${node.code})` : node.name}
+            tint={config.dot}
+            small={depth > 0}
+            onRename={(n) => onRename(node, n)}
+            onPromote={depth > 0 ? () => onPromote(node) : undefined}
+            onDelete={() => onDelete(node)}
+            onReparent={depth > 0 ? () => onReparent(node) : undefined}
+          />
+        </div>
+      </div>
+      {isOpen && children.length > 0 && (
+        <div className="ml-8 border-l-2 border-zinc-100 pl-4 mt-1.5 space-y-1.5">
+          {children.map((child) => (
+            <NodeBranch
+              key={child._id}
+              node={child}
+              byLevel={byLevel}
+              expanded={expanded}
+              onToggle={onToggle}
+              onRename={onRename}
+              onPromote={onPromote}
+              onDelete={onDelete}
+              onReparent={onReparent}
+              depth={depth + 1}
+            />
+          ))}
+        </div>
+      )}
+      {isOpen && children.length === 0 && childLevel && (
+        <p className="ml-8 pl-4 py-1 text-[10px] font-bold text-zinc-300 uppercase tracking-widest">Empty</p>
+      )}
+    </motion.div>
+  );
+}
+
+/** Pick a new parent for a node whose current one is wrong (e.g. an existing
+ *  Team that needs moving under a newly-created PCF). */
+function ReparentDialog({
+  node,
+  options,
+  onCancel,
+  onConfirm,
+}: {
+  node: HierarchyNode;
+  options: HierarchyNode[];
+  onCancel: () => void;
+  onConfirm: (parentId: string) => void;
+}) {
+  const [value, setValue] = useState("");
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-6" onClick={onCancel}>
+      <div
+        className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl space-y-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-lg font-black text-zinc-900">Move {node.name}</h3>
+        <Picker value={value} placeholder="Select new parent…" onSelect={setValue} options={options.map((o) => ({ id: o._id, name: o.name }))} />
+        <div className="flex gap-2 pt-2">
+          <Button onClick={onCancel} className="flex-1 h-11 rounded-2xl bg-zinc-100 text-zinc-700 hover:bg-zinc-200">
+            Cancel
+          </Button>
+          <Button
+            onClick={() => value && onConfirm(value)}
+            disabled={!value}
+            className="flex-1 h-11 rounded-2xl bg-zinc-950 text-white hover:bg-black"
+          >
+            Move
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -341,15 +506,17 @@ function Row({
   onRename,
   onPromote,
   onDelete,
+  onReparent,
 }: {
   label: string;
-  tint: "indigo" | "emerald" | "pink";
+  tint: string;
   small?: boolean;
   onRename: (name: string) => void;
   onPromote?: () => void;
   onDelete: () => void;
+  onReparent?: () => void;
 }) {
-  const dot = { indigo: "bg-indigo-400", emerald: "bg-emerald-400", pink: "bg-pink-400" }[tint];
+  const dot = tint;
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(label);
   const ref = useRef<HTMLInputElement>(null);
@@ -411,6 +578,11 @@ function Row({
           {onPromote && (
             <button onClick={onPromote} title="Promote up one level" className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all">
               <ArrowFatUp size={15} weight="bold" />
+            </button>
+          )}
+          {onReparent && (
+            <button onClick={onReparent} title="Move to a different parent" className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-300 hover:text-teal-600 hover:bg-teal-50 transition-all">
+              <TreeStructure size={15} weight="bold" />
             </button>
           )}
           <button onClick={() => setEditing(true)} title="Rename" className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-300 hover:text-zinc-900 hover:bg-zinc-100 transition-all">
@@ -620,14 +792,14 @@ const SCOPES: { id: ExportScope; label: string; icon: React.ReactNode }[] = [
 /** Downloads the register as CSV — name, cell and phone number, optionally
  *  narrowed to a single cell or senior cell. */
 function ExportTab() {
-  const [groups, setGroups] = useState<Group[]>([]);
+  const [groups, setGroups] = useState<HierarchyNode[]>([]);
   const [members, setMembers] = useState<{ cell?: string; seniorCell?: string }[]>([]);
   const [scope, setScope] = useState<ExportScope>("all");
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    fetch("/api/groups")
+    fetch("/api/hierarchy")
       .then((r) => r.json())
       .then(setGroups)
       .catch(() => toast.error("Failed to load structure"));

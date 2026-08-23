@@ -11,7 +11,8 @@ import { MagnifyingGlass, Pulse, CalendarBlank, Plus, X } from "@phosphor-icons/
 import { format } from "date-fns";
 import { MarkerBar } from "@/components/MarkerBar";
 import { SyncPill } from "@/components/SyncPill";
-import { serviceMatchesDate, serviceDayName } from "@/lib/service-schedule";
+import { serviceMatchesDate, serviceDayName, type SundaySession } from "@/lib/service-schedule";
+import { ServiceInitModal, ServiceSummaryStrip } from "@/components/ServiceInitModal";
 
 type ProgramTab = { id: string; name: string; serviceLabel: string };
 
@@ -128,6 +129,22 @@ export default function PFCCDashboard() {
 
   const liveCount = inProgram ? program.presentCount : signedInIds.length;
   const wrongDay = !inProgram && !serviceMatchesDate(service, date);
+
+  const isSunday = !inProgram && service === "Sunday" && !wrongDay;
+  const isoDate = format(date, "yyyy-MM-dd");
+  const [sundaySession, setSundaySession] = useState<SundaySession | null>(null);
+  const [sundayLoaded, setSundayLoaded] = useState(false);
+  const [editingSession, setEditingSession] = useState(false);
+
+  useEffect(() => {
+    if (!isSunday) return;
+    setSundayLoaded(false);
+    fetch(`/api/service-sessions?date=${isoDate}`)
+      .then((r) => (r.ok ? r.json() : { session: null }))
+      .then((data) => setSundaySession(data.session ?? null))
+      .catch(() => setSundaySession(null))
+      .finally(() => setSundayLoaded(true));
+  }, [isSunday, isoDate]);
 
   // The page's bottom padding clears the floating add button so it can never
   // sit on top of the last row's mark button.
@@ -291,6 +308,23 @@ export default function PFCCDashboard() {
             </div>
           )}
 
+          {isSunday && sundayLoaded && sundaySession && (
+            <ServiceSummaryStrip session={sundaySession} onEdit={() => setEditingSession(true)} />
+          )}
+
+          {isSunday && sundayLoaded && (sundaySession === null || editingSession) && (
+            <ServiceInitModal
+              isoDate={isoDate}
+              existingSession={editingSession ? sundaySession : null}
+              canInitialize={canMark}
+              onSaved={(session) => {
+                setSundaySession(session);
+                setEditingSession(false);
+              }}
+              onDismiss={() => setEditingSession(false)}
+            />
+          )}
+
           {inProgram ? (
             <ProgramList
               rows={program.rows}
@@ -310,6 +344,7 @@ export default function PFCCDashboard() {
               canMark={canMark}
               searchQuery={searchQuery}
               onAddNew={handleAddNew}
+              sundaySession={isSunday ? sundaySession : null}
             />
           )}
         </div>

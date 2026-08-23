@@ -65,7 +65,7 @@ export const ExistingForm = ({ onSubmit, initialData, saving, onDirtyChange, pre
 
   // Load the registered structure and flatten it to cell → seniorCell → team.
   useEffect(() => {
-    fetch("/api/groups")
+    fetch("/api/hierarchy")
       .then(r => r.json())
       .then((groups: any[]) => {
         const byId: Record<string, any> = Object.fromEntries(groups.map(g => [g._id, g]));
@@ -84,14 +84,15 @@ export const ExistingForm = ({ onSubmit, initialData, saving, onDirtyChange, pre
 
   // Auto-fill Logic for Hierarchy
   useEffect(() => {
-    const match = hierarchy.find(h => h.cell.toLowerCase() === form.cell.toLowerCase());
+    const match = hierarchy.find(h => h.cell.toLowerCase() === (form.cell || "").toLowerCase());
     if (match) {
       setForm((prev: any) => ({ ...prev, seniorCell: match.seniorCell, team: match.team }));
     }
   }, [form.cell, hierarchy]);
 
-  // Combobox Filtering Logic: Show all if input is focused but empty/default, otherwise filter
-  const filteredCells = form.cell === ""
+  // Combobox Filtering Logic: Show all if input is focused but empty/default, otherwise filter.
+  // form.cell can be undefined here (e.g. a first-timer just promoted arrives with no cell yet).
+  const filteredCells = !form.cell
     ? hierarchy
     : hierarchy.filter(h => h.cell.toLowerCase().includes(form.cell.toLowerCase()));
 

@@ -5,7 +5,7 @@ import Program from "@/models/Program";
 import Member from "@/models/Member";
 import OutreachContact from "@/models/OutreachContact";
 import OutreachLog from "@/models/OutreachLog";
-import Group from "@/models/Group";
+import HierarchyNode from "@/models/HierarchyNode";
 import ProgramAttendance from "@/models/ProgramAttendance";
 import { getSession } from "@/lib/auth";
 
@@ -126,7 +126,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
       // Resolve cell/group names in one batch.
       const groupIds = [...new Set(contacts.map((c) => String(c.groupId)))];
-      const groups = await Group.find({ _id: { $in: groupIds } }).select("name").lean<any[]>();
+      const groups = await HierarchyNode.find({ _id: { $in: groupIds } }).select("name").lean<any[]>();
       const groupName = new Map(groups.map((g) => [String(g._id), g.name]));
 
       for (const c of contacts) {

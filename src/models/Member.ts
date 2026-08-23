@@ -40,11 +40,15 @@ const MemberSchema = new Schema({
     type: String, 
     trim: true 
   },
-  team: { 
-    type: String, 
-    trim: true 
+  team: {
+    type: String,
+    trim: true
   },
-  role: { 
+  pcf: { type: String, trim: true },
+  chapter: { type: String, trim: true },
+  group: { type: String, trim: true },
+  zone: { type: String, trim: true },
+  role: {
     type: String, 
     enum: ["Member", "BST", "Cell Leader", "Senior Cell Leader", "Team Lead", "Pastor"],
     default: "Member",

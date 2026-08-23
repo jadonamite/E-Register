@@ -4,7 +4,7 @@ import connectDB from "@/lib/db";
 import OutreachEvent from "@/models/OutreachEvent";
 import OutreachContact from "@/models/OutreachContact";
 import OutreachLog from "@/models/OutreachLog";
-import Group from "@/models/Group";
+import HierarchyNode from "@/models/HierarchyNode";
 import { guardOutreach } from "@/lib/outreach-auth";
 import { deriveStatus, nextFollowUp, type LogLike } from "@/lib/outreach-status";
 
@@ -125,7 +125,7 @@ export async function POST(req: Request) {
     // Referenced event + group must exist.
     const [event, group] = await Promise.all([
       OutreachEvent.exists({ _id: eventId }),
-      Group.exists({ _id: groupId }),
+      HierarchyNode.exists({ _id: groupId }),
     ]);
     if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
     if (!group) return NextResponse.json({ error: "Group not found" }, { status: 404 });
