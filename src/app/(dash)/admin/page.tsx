@@ -574,7 +574,7 @@ function Row({
           </button>
         </div>
       ) : (
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-0.5">
           {onPromote && (
             <button onClick={onPromote} title="Promote up one level" className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all">
               <ArrowFatUp size={15} weight="bold" />
