@@ -135,10 +135,12 @@ export default function PFCCDashboard() {
   const [sundaySession, setSundaySession] = useState<SundaySession | null>(null);
   const [sundayLoaded, setSundayLoaded] = useState(false);
   const [editingSession, setEditingSession] = useState(false);
+  const [initDismissed, setInitDismissed] = useState(false);
 
   useEffect(() => {
     if (!isSunday) return;
     setSundayLoaded(false);
+    setInitDismissed(false);
     fetch(`/api/service-sessions?date=${isoDate}`)
       .then((r) => (r.ok ? r.json() : { session: null }))
       .then((data) => setSundaySession(data.session ?? null))
@@ -312,18 +314,37 @@ export default function PFCCDashboard() {
             <ServiceSummaryStrip session={sundaySession} onEdit={() => setEditingSession(true)} />
           )}
 
-          {isSunday && sundayLoaded && (sundaySession === null || editingSession) && (
-            <ServiceInitModal
-              isoDate={isoDate}
-              existingSession={editingSession ? sundaySession : null}
-              canInitialize={canMark}
-              onSaved={(session) => {
-                setSundaySession(session);
-                setEditingSession(false);
-              }}
-              onDismiss={() => setEditingSession(false)}
-            />
+          {isSunday && sundayLoaded && sundaySession === null && canMark && initDismissed && (
+            <div className="mb-6 flex items-center justify-between gap-3 px-5 py-4 bg-amber-50 border border-amber-200 rounded-2xl">
+              <p className="text-xs font-bold text-amber-800 tracking-tight">
+                This Sunday's service isn't set up yet.
+              </p>
+              <button
+                onClick={() => setInitDismissed(false)}
+                className="text-[10px] font-black uppercase tracking-widest text-amber-700/70 hover:text-amber-900 transition-colors shrink-0"
+              >
+                Set up now
+              </button>
+            </div>
           )}
+
+          {isSunday &&
+            sundayLoaded &&
+            ((sundaySession === null && canMark && !initDismissed) || editingSession) && (
+              <ServiceInitModal
+                isoDate={isoDate}
+                existingSession={editingSession ? sundaySession : null}
+                canInitialize={canMark}
+                onSaved={(session) => {
+                  setSundaySession(session);
+                  setEditingSession(false);
+                }}
+                onDismiss={() => {
+                  setEditingSession(false);
+                  setInitDismissed(true);
+                }}
+              />
+            )}
 
           {inProgram ? (
             <ProgramList

@@ -152,7 +152,7 @@ export function ServiceInitModal({
       >
         <div className="sticky top-0 bg-[#FDFBFC] pt-3 pb-2 rounded-t-[2.5rem]">
           <div className="w-10 h-1.5 bg-zinc-300 rounded-full mx-auto" />
-          {isEdit && onDismiss && (
+          {onDismiss && (
             <button
               onClick={onDismiss}
               className="absolute top-6 right-6 w-9 h-9 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center transition-all"
