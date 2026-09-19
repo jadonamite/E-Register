@@ -1,201 +1,106 @@
-Here is a comprehensive **Project Takeover Document** for the **E-Register** system. You can save this as `README.md` in your repository or hand it over as a formal PDF/Notion document to any new developer or stakeholder.
+# E-Register
 
----
+Attendance and membership tracking for a church, replacing the paper register.
 
-# 📘 Project Takeover: E-Register System
+Two interfaces sit on the same data. `/pfcc` is the attendance list someone marks during a service. `/exec` is the analytics view for leadership: headcount, first timers, who has stopped showing up, how the cells compare.
 
-**Version:** 1.0.0
-**Status:** Production-Ready Beta
-**Last Updated:** February 2026
+## What it does that a paper register cannot
 
----
+**Marking attendance for a past date.** The `useMembers` hook takes a `selectedDate` rather than assuming today. Pick last Sunday and the signed-in list recalculates against that date's records; marking someone present then writes the record with that date, not the current one. Registers get filled in late, so the app has to let you.
 
-## 1. Executive Summary
+**Flagging people before they drift.** A member is at risk once they have attendance history and their most recent record is more than 14 days old. Two conditions, both necessary. Someone who has never attended is not drifting, they are new.
 
-**E-Register** is a modern, full-stack church management application designed to track membership databases, monitor real-time attendance, and provide high-level executive analytics for church leadership.
+**First timers.** Anyone whose profile was created in the last 30 days, computed at read time rather than stored, so it never goes stale.
 
-The system replaces manual paper registers with a digital, mobile-responsive dashboard that supports "Time Travel" (editing past records) and "Retention Tracking" (identifying members at risk of leaving).
+## Stack
 
----
+Next.js 14 on the App Router, TypeScript, Tailwind, Framer Motion, Phosphor icons. The API is Next.js route handlers returning JSON. Data lives in MongoDB Atlas through Mongoose.
 
-## 2. Technical Stack
+## Data model
 
-### **Frontend**
+One collection, `members`, with attendance kept as a subdocument array rather than its own collection. Reads are almost always "this member and their history", so keeping them together avoids a join on the hot path.
 
-* **Framework:** [Next.js 14 (App Router)](https://nextjs.org/)
-* **Language:** TypeScript
-* **Styling:** Tailwind CSS
-* **Animations:** Framer Motion
-* **Icons:** Phosphor Icons (React)
-* **UI Architecture:** Bento Grid / Masonry Layouts
+| Field | Type | Notes |
+|---|---|---|
+| `_id` | ObjectId | |
+| `name` | String | |
+| `phone` | String | Unique. This is what stops duplicate profiles. |
+| `cell` | String | Fellowship cell, for example "Marvelous" |
+| `attendance` | Array | Every attendance record for this member |
+| `createdAt` | Date | Drives first-timer status |
 
-### **Backend**
-
-* **Runtime:** Node.js (via Next.js API Routes)
-* **Database:** MongoDB (Atlas Cloud)
-* **ORM:** Mongoose
-* **API Architecture:** RESTful JSON endpoints
-
----
-
-## 3. Architecture Overview
-
-### **Folder Structure**
-
-```bash
-src/
-├── app/
-│   ├── (dash)/          # Dashboard Layouts
-│   │   ├── pfcc/        # The "Attendance Marking" Interface
-│   │   └── exec/        # The "Executive Analytics" Interface
-│   ├── api/             # Backend Routes
-│   │   ├── members/     # CRUD for Members
-│   │   ├── attendance/  # Attendance Logging (POST/DELETE)
-│   │   └── analytics/   # Executive Data Aggregation
-├── components/
-│   ├── exec/            # Modular Dashboard Components (Charts, Grids)
-│   ├── MemberList.tsx   # The main attendance list UI
-│   └── AddMemberModal.tsx
-├── hooks/
-│   └── use-members.ts   # Custom hook handling all data logic & state
-├── lib/
-│   └── db.ts            # Singleton MongoDB Connection
-└── models/
-    └── Member.ts        # Mongoose Schema definition
-
-```
-
----
-
-## 4. Database Schema
-
-The database consists of a single primary collection: `members`.
-
-**Model: `Member**`
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `_id` | ObjectId | Auto-generated unique ID. |
-| `name` | String | Full Name. |
-| `phone` | String | Unique Identifier (Prevent duplicates). |
-| `cell` | String | The fellowship cell (e.g., "Marvelous"). |
-| `attendance` | Array | A history log of all attendances. |
-| `createdAt` | Date | Used to calculate "First Timer" status. |
-
-**Attendance Sub-Document Structure:**
+Each attendance entry:
 
 ```typescript
 {
-  date: Date,          // e.g., 2026-02-08
+  date: Date,          // 2026-02-08
   serviceType: String, // "Sunday" or "Mid-Week"
   status: String       // "Present"
 }
-
 ```
 
----
+## API
 
-## 5. API Documentation
+`GET /api/members` returns everyone, sorted alphabetically.
 
-### **1. Member Management**
+`POST /api/members` creates one. Body: `{ name, phone, cell, churchDept, schoolDept, level }`.
 
-* **`GET /api/members`**: Fetches all members sorted alphabetically.
-* **`POST /api/members`**: Creates a new member.
-* *Payload:* `{ name, phone, cell, churchDept, schoolDept, level }`
+`POST /api/attendance` marks present. Body: `{ memberId, serviceType, date }`. Marking the same member twice for one day and service is rejected rather than duplicated.
 
+`DELETE /api/attendance` undoes that, with the same body.
 
+`GET /api/analytics` computes the dashboard in one pass: total members, first timers in the last 30 days, the at-risk list, cell distribution, attendance trend.
 
-### **2. Attendance Logic**
+## Running it
 
-* **`POST /api/attendance`**: Marks a member as **Present**.
-* *Payload:* `{ memberId, serviceType, date }`
-* *Logic:* Prevents duplicates for the same day/service.
-
-
-* **`DELETE /api/attendance`**: Marks a member as **Absent** (Undo).
-* *Payload:* `{ memberId, serviceType, date }`
-
-
-
-### **3. Analytics Engine**
-
-* **`GET /api/analytics`**: Computes all KPIs for the Executive Dashboard.
-* *Returns:* Total count, First Timers (last 30 days), Retention Risk list (absent 2+ weeks), Cell Distribution stats, and Attendance Trends.
-
-
-
----
-
-## 6. Key Features & Logic
-
-### **A. Time Travel (Date Picker)**
-
-The application does not just assume "Today." The `useMembers` hook accepts a `selectedDate`.
-
-* If the Admin selects *Last Sunday*, the UI re-calculates the `signedInIds` based on attendance records matching that specific past date.
-* Marking attendance while in "Past Mode" saves the record with that past date.
-
-### **B. Retention Risk Algorithm**
-
-The system automatically flags members as "At Risk" if:
-
-1. They have attendance records in the past.
-2. Their *most recent* attendance date is older than **14 days**.
-
-### **C. First Timer Logic**
-
-"New Members" are calculated dynamically by comparing the `createdAt` timestamp of the member profile against the current date (Window: 30 Days).
-
----
-
-## 7. Installation & Setup
-
-1. **Clone the Repository:**
 ```bash
-git clone [repo-url]
-cd e-register
-
-```
-
-
-2. **Install Dependencies:**
-```bash
+git clone https://github.com/jadonamite/E-Register
+cd E-Register
 npm install
-
 ```
 
+Create `.env`:
 
-3. **Environment Configuration:**
-Create a `.env` file in the root directory:
 ```env
-MONGODB_URI=mongodb+srv://[username]:[password]@[cluster].mongodb.net/?retryWrites=true&w=majority
-
+MONGODB_URI=mongodb+srv://USER:PASSWORD@CLUSTER.mongodb.net/?retryWrites=true&w=majority
 ```
 
-
-4. **Run Development Server:**
 ```bash
 npm run dev
-
 ```
 
+Then `http://localhost:3000`.
 
-Access the app at `http://localhost:3000`.
+## Not done yet
 
----
+**There is no authentication.** `/pfcc` and `/exec` are both public, which means anyone with the URL can read the membership list and the analytics. That is fine on localhost and not fine deployed. NextAuth is the intended fix and it is the first thing to do before this handles real congregation data.
 
-## 8. Known Issues & Roadmap
+The Export Data button on the dashboard does nothing yet; it needs a PDF library wired in.
 
-### **Immediate To-Dos**
+Two things worth building after that: a cell leader view scoped to that leader's own members, and making Contact on the at-risk list actually open WhatsApp or fire an SMS rather than sitting there.
 
-* **Authentication:** Currently, all routes (`/pfcc`, `/exec`) are public. NextAuth.js should be implemented to secure the Executive Dashboard.
-* **PDF Export:** The "Export Data" button on the dashboard is currently a placeholder. Needs a library like `jspdf` to generate reports.
+## Structure
 
-### **Future Improvements**
+```
+src/
+├── app/
+│   ├── (dash)/
+│   │   ├── pfcc/        attendance marking
+│   │   └── exec/        analytics
+│   └── api/
+│       ├── members/
+│       ├── attendance/
+│       └── analytics/
+├── components/
+│   ├── exec/            charts and dashboard grids
+│   ├── MemberList.tsx
+│   └── AddMemberModal.tsx
+├── hooks/
+│   └── use-members.ts   data fetching and state
+├── lib/
+│   └── db.ts            connection singleton
+└── models/
+    └── Member.ts
+```
 
-* **Cell Leader View:** A restricted view where Cell Leaders can only see *their* members.
-* **SMS Integration:** Clicking "Contact" on the Retention List should open WhatsApp or send an SMS API request.
-
----
-
-**Handover Approved By:** Jadonamite (Lead Developer)
-**Date:** February 7, 2026
+MIT licensed.
