@@ -26,6 +26,18 @@ function slugify(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+const VALID_SCOPES = [
+  "all",
+  "zone",
+  "group",
+  "chapter",
+  "pcf",
+  "team",
+  "seniorCell",
+  "cell",
+] as const;
+type ExportScope = (typeof VALID_SCOPES)[number];
+
 export async function GET(req: Request) {
   try {
     const session = await getSession();
@@ -35,14 +47,14 @@ export async function GET(req: Request) {
     await connectDB();
 
     const url = new URL(req.url);
-    const scope = url.searchParams.get("scope") || "all";
+    const scope = (url.searchParams.get("scope") || "all") as ExportScope;
     const value = (url.searchParams.get("value") || "").trim();
 
-    if (scope !== "all" && scope !== "cell" && scope !== "seniorCell") {
+    if (!VALID_SCOPES.includes(scope)) {
       return NextResponse.json({ error: "Invalid scope" }, { status: 400 });
     }
     if (scope !== "all" && !value) {
-      return NextResponse.json({ error: "Pick a cell to export" }, { status: 400 });
+      return NextResponse.json({ error: `Pick a ${scope} to export` }, { status: 400 });
     }
 
     // Case-insensitive exact match — hierarchy values are canonicalised on
@@ -52,14 +64,28 @@ export async function GET(req: Request) {
         ? {}
         : { [scope]: new RegExp(`^${value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") };
 
-    const members = await Member.find(filter)
-      .select("name cell phone")
-      .sort({ cell: 1, name: 1 })
-      .lean();
+    interface MemberExportRow {
+      name: string;
+      team?: string;
+      seniorCell?: string;
+      cell?: string;
+      phone: string;
+    }
+
+    const members = (await Member.find(filter)
+      .select("name team seniorCell cell phone")
+      .sort({ team: 1, seniorCell: 1, cell: 1, name: 1 })
+      .lean()) as unknown as MemberExportRow[];
 
     const rows = [
-      ["Name", "Cell", "Phone Number"],
-      ...members.map((m) => [m.name, m.cell || "", m.phone]),
+      ["Name", "Team", "Senior Cell", "Cell", "Phone Number"],
+      ...members.map((m) => [
+        m.name,
+        m.team || "",
+        m.seniorCell || "",
+        m.cell || "",
+        m.phone,
+      ]),
     ];
     // Leading BOM so Excel opens it as UTF-8 rather than mangling accents.
     const csv = "\uFEFF" + rows.map((r) => r.map(csvCell).join(",")).join("\r\n");

@@ -20,8 +20,6 @@ import {
   ToggleLeft,
   ToggleRight,
   UsersThree,
-  Users,
-  User,
   CaretDown,
   Check,
   PencilSimple,
@@ -781,22 +779,31 @@ function MarkersTab() {
 /* Export tab                                                          */
 /* ------------------------------------------------------------------ */
 
-type ExportScope = "all" | "seniorCell" | "cell";
+type ExportScope = "all" | "team" | "seniorCell" | "cell" | "pcf" | "chapter" | "group" | "zone";
 
-const SCOPES: { id: ExportScope; label: string; icon: React.ReactNode }[] = [
+const SCOPES: { id: ExportScope; label: string; level?: HierarchyLevel; icon?: React.ReactNode; dot?: string }[] = [
   { id: "all", label: "Everyone", icon: <UsersThree size={16} weight="bold" /> },
-  { id: "seniorCell", label: "Senior Cell", icon: <Users size={16} weight="bold" /> },
-  { id: "cell", label: "Cell", icon: <User size={16} weight="bold" /> },
+  { id: "team", label: "Team", level: "TEAM", dot: "bg-indigo-400" },
+  { id: "seniorCell", label: "Senior Cell", level: "SENIOR_CELL", dot: "bg-emerald-400" },
+  { id: "cell", label: "Cell", level: "CELL", dot: "bg-pink-400" },
+  { id: "pcf", label: "PCF", level: "PCF", dot: "bg-teal-400" },
+  { id: "chapter", label: "Chapter", level: "CHAPTER", dot: "bg-cyan-400" },
+  { id: "group", label: "Group", level: "GROUP", dot: "bg-blue-400" },
+  { id: "zone", label: "Zone", level: "ZONE", dot: "bg-violet-400" },
 ];
 
-/** Downloads the register as CSV — name, cell and phone number, optionally
- *  narrowed to a single cell or senior cell. */
+/** Downloads the register as CSV — name, hierarchy and phone number, optionally
+ *  narrowed to any tier in the church structure. */
+type MemberHierarchyRecord = Partial<Record<ExportScope, string>>;
+
 function ExportTab() {
   const [groups, setGroups] = useState<HierarchyNode[]>([]);
-  const [members, setMembers] = useState<{ cell?: string; seniorCell?: string }[]>([]);
+  const [members, setMembers] = useState<MemberHierarchyRecord[]>([]);
   const [scope, setScope] = useState<ExportScope>("all");
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const currentScope = SCOPES.find((s) => s.id === scope);
 
   useEffect(() => {
     fetch("/api/hierarchy")
@@ -810,24 +817,24 @@ function ExportTab() {
       .catch(() => {});
   }, []);
 
-  // Options are the group names, since that's what a member row stores.
+  // Options are the group names matching the selected hierarchy tier.
   const options = useMemo(() => {
-    const level = scope === "cell" ? "CELL" : "SENIOR_CELL";
+    if (scope === "all" || !currentScope?.level) return [];
     return groups
-      .filter((g) => g.level === level)
+      .filter((g) => g.level === currentScope.level)
       .map((g) => ({ id: g.name, name: g.name }));
-  }, [groups, scope]);
+  }, [groups, scope, currentScope]);
 
   const count = useMemo(() => {
     if (scope === "all") return members.length;
     if (!value) return 0;
-    return members.filter((m) => (m[scope] || "").toLowerCase() === value.toLowerCase()).length;
+    return members.filter((m) => ((m[scope] || "").toLowerCase() === value.toLowerCase())).length;
   }, [members, scope, value]);
 
   const ready = scope === "all" || !!value;
 
   const download = async () => {
-    if (!ready) return toast.error(`Pick a ${scope === "cell" ? "cell" : "senior cell"} first`);
+    if (!ready) return toast.error(`Pick a ${currentScope?.label.toLowerCase() || "filter"} first`);
     setBusy(true);
     try {
       const qs = scope === "all" ? "" : `?scope=${scope}&value=${encodeURIComponent(value)}`;
@@ -867,7 +874,7 @@ function ExportTab() {
         <div>
           <h2 className="text-2xl font-black tracking-tight text-zinc-900">Export register</h2>
           <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400 mt-1.5">
-            Name · Cell · Phone number
+            Name · Team · Senior Cell · Cell · Phone number
           </p>
         </div>
 
@@ -886,20 +893,20 @@ function ExportTab() {
                   scope === s.id ? "bg-white text-black shadow-sm" : "text-zinc-400 hover:text-zinc-600"
                 )}
               >
-                {s.icon}
+                {s.icon ? s.icon : s.dot ? <span className={`w-2 h-2 rounded-full ${s.dot}`} /> : null}
                 {s.label}
               </button>
             ))}
           </div>
         </div>
 
-        {scope !== "all" && (
+        {scope !== "all" && currentScope && (
           <div className="space-y-2">
-            <Label>{scope === "cell" ? "Cell" : "Senior cell"}</Label>
+            <Label>{currentScope.label}</Label>
             <Picker
               value={value}
               options={options}
-              placeholder={scope === "cell" ? "Choose a cell" : "Choose a senior cell"}
+              placeholder={`Choose a ${currentScope.label.toLowerCase()}…`}
               onSelect={setValue}
             />
           </div>
@@ -911,7 +918,7 @@ function ExportTab() {
           />
           <p className="text-xs font-bold text-zinc-500 tracking-tight">
             {!ready
-              ? `Pick a ${scope === "cell" ? "cell" : "senior cell"} to export`
+              ? `Pick a ${currentScope?.label.toLowerCase() || "filter"} to export`
               : count === 0
                 ? "Nobody matches this filter yet"
                 : `${count} ${count === 1 ? "person" : "people"} will be exported`}
